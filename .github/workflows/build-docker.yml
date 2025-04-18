@@ -45,6 +45,7 @@ jobs:
           tags: |
             # Git tag 推送时使用，添加 -amd64 后缀
             type=ref,event=tag,suffix=-amd64
+            type=ref,event=release,suffix=-amd64
             # 手动触发时使用输入的版本，添加 -amd64 后缀
             type=raw,value=${{ github.event.inputs.version }}-amd64
 
@@ -102,6 +103,7 @@ jobs:
           tags: |
             # Git tag 推送时使用，添加 -arm64 后缀
             type=ref,event=tag,suffix=-arm64
+            type=ref,event=release,suffix=-arm64
             # 手动触发时使用输入的版本，添加 -arm64 后缀
             type=raw,value=${{ github.event.inputs.version }}-arm64
 
