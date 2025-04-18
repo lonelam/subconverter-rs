@@ -8,3 +8,7 @@ wasm-test/dist
 wasm-test/.rspack-cache
 # Local Netlify folder
 .netlify
+/.vscode/settings.json
+/.cursorignore
+/.cursorrules
+node_modules

@@ -26,7 +26,7 @@ const App: React.FC = () => {
       try {
         // This is the critical fix - we need to import the module, initialize it,
         // and only then try to use its functions
-        const wasm = await import('../../pkg/subconverter');
+        const wasm = await import('../../../pkg/subconverter');
         await wasm.default();
 
         // Initialize logging if the function exists
