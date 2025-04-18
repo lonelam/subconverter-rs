@@ -1,9 +1,6 @@
 name: Docker Build Multi-Arch
 
 on:
-  push:
-    tags:
-      - 'v*'
   release:
     types: [published]
   workflow_dispatch:
