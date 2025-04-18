@@ -172,46 +172,46 @@ jobs:
               VERSION="${{ github.event.release.tag_name }}"
             fi
             
-            buildx imagetools create -t \
+            docker buildx imagetools create -t \
                 ${image_base_ghcr}:${VERSION} \
                 ${image_base_ghcr}:${VERSION}-arm64 \
                 ${image_base_ghcr}:${VERSION}-amd64
             
-            buildx imagetools create -t \
+            docker buildx imagetools create -t \
                 ${image_base_dockerhub}:${VERSION} \
                 ${image_base_dockerhub}:${VERSION}-arm64 \
                 ${image_base_dockerhub}:${VERSION}-amd64
             
             # 如果是release,则设置latest标签
             if [[ "${{ github.event_name }}" == "release" ]]; then
-              buildx imagetools create -t \
+              docker buildx imagetools create -t \
                   ${image_base_ghcr}:latest \
                   ${image_base_ghcr}:${VERSION}-arm64 \
                   ${image_base_ghcr}:${VERSION}-amd64
               
-              buildx imagetools create -t \
+              docker buildx imagetools create -t \
                   ${image_base_dockerhub}:latest \
                   ${image_base_dockerhub}:${VERSION}-arm64 \
                   ${image_base_dockerhub}:${VERSION}-amd64
             fi
           elif [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            buildx imagetools create -t \
+            docker buildx imagetools create -t \
                 ${image_base_ghcr}:${{ github.event.inputs.version }} \
                 ${image_base_ghcr}:${{ github.event.inputs.version }}-arm64 \
                 ${image_base_ghcr}:${{ github.event.inputs.version }}-amd64
             
-            buildx imagetools create -t \
+            docker buildx imagetools create -t \
                 ${image_base_dockerhub}:${{ github.event.inputs.version }} \
                 ${image_base_dockerhub}:${{ github.event.inputs.version }}-arm64 \
                 ${image_base_dockerhub}:${{ github.event.inputs.version }}-amd64
             
             if [ "${{ github.event.inputs.also_latest }}" == "true" ]; then
-              buildx imagetools create -t \
+              docker buildx imagetools create -t \
                   ${image_base_ghcr}:latest \
                   ${image_base_ghcr}:${{ github.event.inputs.version }}-arm64 \
                   ${image_base_ghcr}:${{ github.event.inputs.version }}-amd64
               
-              buildx imagetools create -t \
+              docker buildx imagetools create -t \
                   ${image_base_dockerhub}:latest \
                   ${image_base_dockerhub}:${{ github.event.inputs.version }}-arm64 \
                   ${image_base_dockerhub}:${{ github.event.inputs.version }}-amd64
