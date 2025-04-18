@@ -45,9 +45,9 @@ jobs:
           tags: |
             # Git tag 推送时使用，添加 -amd64 后缀
             type=ref,event=tag,suffix=-amd64
-            type=ref,event=release,suffix=-amd64
+            type=raw,value=${{ github.event.release.tag_name }}-amd64,enable=${{ github.event_name == 'release' }}
             # 手动触发时使用输入的版本，添加 -amd64 后缀
-            type=raw,value=${{ github.event.inputs.version }}-amd64
+            type=raw,value=${{ github.event.inputs.version }}-amd64,enable=${{ github.event_name == 'workflow_dispatch' }}
 
       - name: Set up QEMU # amd64 runner 构建其他平台需要 QEMU，虽然这里只构建 amd64，保留也无妨
         uses: docker/setup-qemu-action@v3
@@ -103,9 +103,9 @@ jobs:
           tags: |
             # Git tag 推送时使用，添加 -arm64 后缀
             type=ref,event=tag,suffix=-arm64
-            type=ref,event=release,suffix=-arm64
+            type=raw,value=${{ github.event.release.tag_name }}-arm64,enable=${{ github.event_name == 'release' }}
             # 手动触发时使用输入的版本，添加 -arm64 后缀
-            type=raw,value=${{ github.event.inputs.version }}-arm64
+            type=raw,value=${{ github.event.inputs.version }}-arm64,enable=${{ github.event_name == 'workflow_dispatch' }}
 
       # ARM Runner 原生构建 ARM 镜像，不需要 QEMU
       - name: Set up Docker Buildx
