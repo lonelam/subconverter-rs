@@ -4,6 +4,8 @@ on:
   push:
     tags:
       - 'v*'
+  release:
+    types: [published]
   workflow_dispatch:
     inputs:
       version:
@@ -159,29 +161,36 @@ jobs:
           image_base_ghcr="ghcr.io/${REPO_OWNER}/${REPO_NAME}"
           image_base_dockerhub="${{ secrets.DOCKERHUB_USERNAME }}/${REPO_NAME}"
           
-          echo "Raw tags output from meta_final:"
-          if [[ "${{ github.event_name }}" == "push" && "$GITHUB_REF" =~ ^refs/tags/ ]]; then
-            buildx imagetools create -t \
-                ${image_base_ghcr}:${{ github.ref_name }} \
-                ${image_base_ghcr}:${{ github.ref_name }}-arm64 \
-                ${image_base_ghcr}:${{ github.ref_name }}-amd64
+          echo "Raw tags output"
+          if [[ "${{ github.event_name }}" == "push" && "$GITHUB_REF" =~ ^refs/tags/ ]] || [[ "${{ github.event_name }}" == "release" ]]; then
+            # 获取标签名称（从push事件或release事件）
+            if [[ "${{ github.event_name }}" == "push" ]]; then
+              VERSION="${{ github.ref_name }}"
+            else
+              VERSION="${{ github.event.release.tag_name }}"
+            fi
             
             buildx imagetools create -t \
-                ${image_base_dockerhub}:${{ github.ref_name }} \
-                ${image_base_dockerhub}:${{ github.ref_name }}-arm64 \
-                ${image_base_dockerhub}:${{ github.ref_name }}-amd64
+                ${image_base_ghcr}:${VERSION} \
+                ${image_base_ghcr}:${VERSION}-arm64 \
+                ${image_base_ghcr}:${VERSION}-amd64
             
-            if [ "${{ github.event.inputs.also_latest }}" == "true" ]; then
+            buildx imagetools create -t \
+                ${image_base_dockerhub}:${VERSION} \
+                ${image_base_dockerhub}:${VERSION}-arm64 \
+                ${image_base_dockerhub}:${VERSION}-amd64
+            
+            # 如果是release,则设置latest标签
+            if [[ "${{ github.event_name }}" == "release" ]]; then
               buildx imagetools create -t \
                   ${image_base_ghcr}:latest \
-                  ${image_base_ghcr}:${{ github.ref_name }}-arm64 \
-                  ${image_base_ghcr}:${{ github.ref_name }}-amd64
+                  ${image_base_ghcr}:${VERSION}-arm64 \
+                  ${image_base_ghcr}:${VERSION}-amd64
               
               buildx imagetools create -t \
                   ${image_base_dockerhub}:latest \
-                  ${image_base_dockerhub}:${{ github.ref_name }}-arm64 \
-                  ${image_base_dockerhub}:${{ github.ref_name }}-amd64
-              
+                  ${image_base_dockerhub}:${VERSION}-arm64 \
+                  ${image_base_dockerhub}:${VERSION}-amd64
             fi
           elif [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             buildx imagetools create -t \
@@ -204,9 +213,7 @@ jobs:
                   ${image_base_dockerhub}:latest \
                   ${image_base_dockerhub}:${{ github.event.inputs.version }}-arm64 \
                   ${image_base_dockerhub}:${{ github.event.inputs.version }}-amd64
-              
             fi
           fi
           echo "Manifest push completed."
           echo "Manifest for ${image_base_ghcr} and ${image_base_dockerhub} created and pushed successfully."
-
