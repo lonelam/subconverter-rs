@@ -1,12 +1,12 @@
-FROM alpine:edge AS builder
+FROM rust:1.86-alpine3.21 AS builder
 
 WORKDIR /app
 COPY . .
 
-RUN apk add --no-cache cargo==~1.86.0 musl-dev perl linux-headers
+RUN apk add --no-cache  musl-dev perl linux-headers
 RUN cargo build --release --bin subconverter --features web-api
 
-FROM alpine:edge
+FROM alpine:3.21
 LABEL maintainer="@jonnyan404"
 
 WORKDIR /app
