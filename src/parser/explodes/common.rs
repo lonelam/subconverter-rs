@@ -1,13 +1,10 @@
-use crate::utils::base64::base64_decode;
+use crate::utils::base64::url_safe_base64_decode;
 use crate::Proxy;
 
 /// Explode a proxy link into a Proxy object
 ///
 /// This function detects the type of proxy link and calls the appropriate parser
 pub fn explode(link: &str, node: &mut Proxy) -> bool {
-    // Trim the link
-    let link = link.trim();
-
     // Check for empty link
     if link.is_empty() {
         return false;
@@ -114,7 +111,7 @@ pub fn explode_sub(sub: &str, nodes: &mut Vec<Proxy>) -> bool {
     // If no specific format was detected, try as a normal subscription
     if !processed {
         // Try to decode as base64
-        let decoded = base64_decode(sub, false);
+        let decoded = url_safe_base64_decode(sub);
 
         // Check if it's a Surge format after decoding
         if decoded.contains("vmess=")

@@ -48,6 +48,8 @@ thiserror = "2.0.12"
 serde_bytes = "0.11.17"
 anyhow = "1.0.97"
 case_insensitive_string = "0.2.9"
+unicode-segmentation = "1.12.0"
+emojis = "0.6.4"
 
 # Re-add WASM-specific dependencies
 [target.'cfg(target_arch = "wasm32")'.dependencies]

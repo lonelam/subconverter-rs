@@ -1,11 +1,11 @@
 use crate::utils::is_empty_option_string;
 use crate::{generator::yaml::clash::output_proxy_types::*, Proxy, ProxyType};
+use serde::ser::{SerializeMap, Serializer};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 /// Represents a complete Clash configuration output
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct ClashYamlOutput {
     // General settings
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -20,11 +20,11 @@ pub struct ClashYamlOutput {
     pub mixed_port: Option<u16>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub allow_lan: Option<bool>,
-    #[serde(skip_serializing_if = "is_empty_option_string")]
+    #[serde(alias = "bind-address", skip_serializing_if = "is_empty_option_string")]
     pub bind_address: Option<String>,
     #[serde(skip_serializing_if = "is_empty_option_string")]
     pub mode: Option<String>,
-    #[serde(skip_serializing_if = "is_empty_option_string")]
+    #[serde(alias = "log-level", skip_serializing_if = "is_empty_option_string")]
     pub log_level: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub ipv6: Option<bool>,
@@ -37,7 +37,7 @@ pub struct ClashYamlOutput {
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub proxies: Vec<ClashProxyOutput>,
 
-    #[serde(skip_serializing_if = "Vec::is_empty")]
+    #[serde(alias = "proxy-groups", skip_serializing_if = "Vec::is_empty")]
     pub proxy_groups: Vec<ClashProxyGroup>,
 
     #[serde(skip_serializing_if = "Vec::is_empty")]
@@ -52,6 +52,173 @@ pub struct ClashYamlOutput {
 
     #[serde(flatten)]
     pub extra_options: HashMap<String, serde_yaml::Value>,
+}
+
+// Wrapper struct for custom serialization
+pub struct SerializableClashYamlOutput<'a> {
+    output: &'a ClashYamlOutput,
+    use_new_field_names: bool,
+}
+
+impl<'a> SerializableClashYamlOutput<'a> {
+    pub fn new(output: &'a ClashYamlOutput, use_new_field_names: bool) -> Self {
+        Self {
+            output,
+            use_new_field_names,
+        }
+    }
+}
+
+// Custom Serialize implementation for the wrapper
+impl<'a> Serialize for SerializableClashYamlOutput<'a> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let output = self.output;
+        let new_names = self.use_new_field_names;
+
+        // Calculate the number of fields to serialize accurately
+        let mut map_len = 0;
+        if output.port.is_some() {
+            map_len += 1;
+        }
+        if output.socks_port.is_some() {
+            map_len += 1;
+        }
+        if output.redir_port.is_some() {
+            map_len += 1;
+        }
+        if output.tproxy_port.is_some() {
+            map_len += 1;
+        }
+        if output.mixed_port.is_some() {
+            map_len += 1;
+        }
+        if output.allow_lan.is_some() {
+            map_len += 1;
+        }
+        // Use the exact same filter logic as in serialization
+        if output
+            .bind_address
+            .as_ref()
+            .filter(|s| !s.is_empty())
+            .is_some()
+        {
+            map_len += 1;
+        }
+        if output.mode.as_ref().filter(|s| !s.is_empty()).is_some() {
+            map_len += 1;
+        }
+        if output
+            .log_level
+            .as_ref()
+            .filter(|s| !s.is_empty())
+            .is_some()
+        {
+            map_len += 1;
+        }
+        if output.ipv6.is_some() {
+            map_len += 1;
+        }
+        if output.dns.is_some() {
+            map_len += 1;
+        }
+        if !output.proxies.is_empty() {
+            map_len += 1;
+        }
+        if !output.proxy_groups.is_empty() {
+            map_len += 1;
+        }
+        if !output.rules.is_empty() {
+            map_len += 1;
+        }
+        if output.tun.is_some() {
+            map_len += 1;
+        }
+        if output.profile.is_some() {
+            map_len += 1;
+        }
+        map_len += output.extra_options.len();
+
+        let mut map = serializer.serialize_map(Some(map_len))?;
+
+        // Serialize fields using kebab-case keys unless overridden
+        if let Some(port) = output.port {
+            map.serialize_entry("port", &port)?;
+        }
+        if let Some(socks_port) = output.socks_port {
+            map.serialize_entry("socks-port", &socks_port)?;
+        }
+        if let Some(redir_port) = output.redir_port {
+            map.serialize_entry("redir-port", &redir_port)?;
+        }
+        if let Some(tproxy_port) = output.tproxy_port {
+            map.serialize_entry("tproxy-port", &tproxy_port)?;
+        }
+        if let Some(mixed_port) = output.mixed_port {
+            map.serialize_entry("mixed-port", &mixed_port)?;
+        }
+        if let Some(allow_lan) = output.allow_lan {
+            map.serialize_entry("allow-lan", &allow_lan)?;
+        }
+        if let Some(bind_address) = output.bind_address.as_ref().filter(|s| !s.is_empty()) {
+            map.serialize_entry("bind-address", bind_address)?;
+        }
+
+        // Mode (dynamic key)
+        if let Some(mode_val) = output.mode.as_ref().filter(|s| !s.is_empty()) {
+            let mode_key = if new_names { "mode" } else { "Mode" };
+            map.serialize_entry(mode_key, mode_val)?;
+        }
+
+        if let Some(log_level) = output.log_level.as_ref().filter(|s| !s.is_empty()) {
+            map.serialize_entry("log-level", log_level)?;
+        }
+        if let Some(ipv6) = output.ipv6 {
+            map.serialize_entry("ipv6", &ipv6)?;
+        }
+        if let Some(dns) = &output.dns {
+            map.serialize_entry("dns", dns)?;
+        }
+
+        // Proxies (dynamic key)
+        if !output.proxies.is_empty() {
+            let proxies_key = if new_names { "proxies" } else { "Proxy" };
+            map.serialize_entry(proxies_key, &output.proxies)?
+        }
+
+        // Proxy Groups (dynamic key)
+        if !output.proxy_groups.is_empty() {
+            let groups_key = if new_names {
+                "proxy-groups"
+            } else {
+                "Proxy Group"
+            };
+            map.serialize_entry(groups_key, &output.proxy_groups)?
+        }
+
+        // Rules (dynamic key)
+        if !output.rules.is_empty() {
+            let rules_key = if new_names { "rules" } else { "Rule" };
+            map.serialize_entry(rules_key, &output.rules)?
+        }
+
+        // Other complex fields
+        if let Some(tun) = &output.tun {
+            map.serialize_entry("tun", tun)?;
+        }
+        if let Some(profile) = &output.profile {
+            map.serialize_entry("profile", profile)?;
+        }
+
+        // Flatten extra_options
+        for (k, v) in &output.extra_options {
+            map.serialize_entry(k, v)?;
+        }
+
+        map.end()
+    }
 }
 
 /// DNS configuration for Clash
@@ -355,27 +522,15 @@ pub enum ClashProxyGroup {
     },
 }
 
-// Implement Default trait for ClashYamlOutput
-impl Default for ClashYamlOutput {
-    fn default() -> Self {
-        Self {
-            port: None,
-            socks_port: None,
-            redir_port: None,
-            tproxy_port: None,
-            mixed_port: None,
-            allow_lan: None,
-            bind_address: None,
-            mode: Some("rule".to_string()),
-            log_level: Some("info".to_string()),
-            ipv6: None,
-            dns: None,
-            proxies: Vec::new(),
-            proxy_groups: Vec::new(),
-            rules: Vec::new(),
-            tun: None,
-            profile: None,
-            extra_options: HashMap::new(),
+impl ClashProxyGroup {
+    /// Returns a reference to the name of the proxy group.
+    pub fn name(&self) -> &str {
+        match self {
+            ClashProxyGroup::Select { name, .. } => name,
+            ClashProxyGroup::UrlTest { name, .. } => name,
+            ClashProxyGroup::Fallback { name, .. } => name,
+            ClashProxyGroup::LoadBalance { name, .. } => name,
+            ClashProxyGroup::Relay { name, .. } => name,
         }
     }
 }

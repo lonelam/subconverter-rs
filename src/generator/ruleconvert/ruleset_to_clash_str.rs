@@ -7,7 +7,6 @@ use crate::utils::string::{find_str, starts_with, trim};
 use crate::Settings;
 use lazy_static::lazy_static;
 use log::warn;
-use serde_yaml::Value as YamlValue;
 use std::collections::HashSet;
 
 use super::common::transform_rule_to_common;
@@ -34,52 +33,31 @@ lazy_static! {
     };
 }
 
-/// Converts rulesets to Clash YAML string format
+/// Converts rulesets to a list of Clash rules (as strings)
 ///
 /// # Arguments
 ///
-/// * `base_rule` - YAML node containing base rules
 /// * `ruleset_content_array` - Array of ruleset content
-/// * `overwrite_original_rules` - Whether to overwrite original rules
-/// * `new_field_name` - Whether to use "rules" or "Rule" as the field name
 ///
 /// # Returns
 ///
-/// YAML string containing the converted rules
-pub fn ruleset_to_clash_str(
-    base_rule: &YamlValue,
-    ruleset_content_array: &[RulesetContent],
-    overwrite_original_rules: bool,
-    new_field_name: bool,
-) -> String {
+/// A vector of strings, each representing a Clash rule.
+pub fn ruleset_to_clash(ruleset_content_array: &[RulesetContent]) -> Vec<String> {
     // Get global settings
     let settings = Settings::current();
 
-    // Set field name based on parameter
-    let field_name = if new_field_name { "rules" } else { "Rule" };
-    let mut output_content = format!("\n{}:\n", field_name);
+    // Initialize output as a vector of strings
+    let mut output_rules = Vec::new();
     let mut total_rules = 0;
-
-    // Include existing rules if not overwriting
-    if !overwrite_original_rules {
-        if let Some(rules) = base_rule.get(field_name) {
-            if let Some(rules_array) = rules.as_sequence() {
-                for rule in rules_array {
-                    if let Some(rule_str) = rule.as_str() {
-                        output_content.push_str(&format!("  - {}\n", rule_str));
-                    }
-                }
-            }
-        }
-    }
-
-    // Use the max_allowed_rules from global settings
-    let max_allowed_rules = settings.max_allowed_rules;
 
     // Process each ruleset content
     for ruleset in ruleset_content_array {
         // Check if we've reached the maximum number of rules
-        if max_allowed_rules > 0 && total_rules >= max_allowed_rules {
+        if settings.max_allowed_rules > 0 && total_rules >= settings.max_allowed_rules {
+            warn!(
+                "Reached maximum allowed rules ({}), stopping ruleset processing.",
+                settings.max_allowed_rules
+            );
             break;
         }
 
@@ -109,7 +87,7 @@ pub fn ruleset_to_clash_str(
 
             // Transform rule to common format
             let transformed = transform_rule_to_common(&rule_line, rule_group, false);
-            output_content.push_str(&format!("  - {}\n", transformed));
+            output_rules.push(transformed);
             total_rules += 1;
             continue;
         }
@@ -127,7 +105,7 @@ pub fn ruleset_to_clash_str(
         // Process each line in the ruleset
         for line in processed_rules.lines() {
             // Check if we've reached the maximum number of rules
-            if max_allowed_rules > 0 && total_rules >= max_allowed_rules {
+            if settings.max_allowed_rules > 0 && total_rules >= settings.max_allowed_rules {
                 break;
             }
 
@@ -159,10 +137,23 @@ pub fn ruleset_to_clash_str(
 
             // Transform rule to common format and add to output
             let transformed = transform_rule_to_common(&str_line, rule_group, false);
-            output_content.push_str(&format!("  - {}\n", transformed));
+            output_rules.push(transformed);
             total_rules += 1;
         }
     }
 
-    output_content
+    // Add warning if rules were truncated
+    if settings.max_allowed_rules > 0
+        && ruleset_content_array
+            .iter()
+            .any(|rs| !rs.get_rule_content().is_empty())
+        && total_rules == settings.max_allowed_rules
+    {
+        warn!(
+            "Truncated ruleset output due to max_allowed_rules setting ({}).",
+            settings.max_allowed_rules
+        );
+    }
+
+    output_rules
 }

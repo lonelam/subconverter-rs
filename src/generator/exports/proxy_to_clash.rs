@@ -1,11 +1,14 @@
 use crate::generator::config::group::group_generate;
 use crate::generator::config::remark::process_remark;
-use crate::generator::ruleconvert::ruleset_to_clash_str;
-use crate::generator::yaml::clash::clash_output::ClashProxyOutput;
-use crate::generator::yaml::proxy_group_output::convert_proxy_groups;
-use crate::models::{ExtraSettings, Proxy, ProxyGroupConfigs, ProxyType, RulesetContent};
-use log::error;
-use serde_yaml::{self, Mapping, Sequence, Value as YamlValue};
+use crate::generator::ruleset_to_clash_str::ruleset_to_clash;
+use crate::generator::yaml::clash::clash_output::{
+    ClashProxyGroup, ClashProxyOutput, ClashYamlOutput, SerializableClashYamlOutput,
+};
+use crate::models::{
+    ExtraSettings, Proxy, ProxyGroupConfig, ProxyGroupConfigs, ProxyGroupType, ProxyType,
+    RulesetContent,
+};
+use log::{error, warn};
 use std::collections::{HashMap, HashSet};
 
 // Lists of supported protocols and encryption methods for filtering in ClashR
@@ -60,6 +63,132 @@ lazy_static::lazy_static! {
     };
 }
 
+/// Converts ProxyGroupConfigs to a vector of ClashProxyGroup enum objects
+fn convert_proxy_groups_to_enum(
+    group_configs: &[ProxyGroupConfig],
+    filtered_nodes_map: Option<&HashMap<String, Vec<String>>>,
+) -> Vec<ClashProxyGroup> {
+    let mut clash_groups = Vec::with_capacity(group_configs.len());
+
+    for group in group_configs {
+        let name = group.name.clone();
+
+        // Determine proxies list, considering filtered nodes and the DIRECT default
+        let mut proxies = if let Some(filtered_map) = filtered_nodes_map {
+            filtered_map
+                .get(&group.name)
+                .cloned()
+                .unwrap_or_else(|| group.proxies.clone())
+        } else {
+            group.proxies.clone()
+        };
+
+        // Add DIRECT if proxies are empty and no providers are used
+        if proxies.is_empty() && group.using_provider.is_empty() {
+            proxies = vec!["DIRECT".to_string()];
+        }
+
+        // Map using_provider to r#use, ensuring it's None if empty
+        let r#use = if group.using_provider.is_empty() {
+            None
+        } else {
+            Some(group.using_provider.clone())
+        };
+
+        // Map disable_udp to Option<bool>, None if false (default)
+        let disable_udp = if group.disable_udp { Some(true) } else { None };
+
+        // Helper to convert u32 to Option<u32>, None if zero
+        let interval_opt = if group.interval > 0 {
+            Some(group.interval)
+        } else {
+            None
+        };
+        let tolerance_opt = if group.tolerance > 0 {
+            Some(group.tolerance)
+        } else {
+            None
+        };
+
+        let clash_group = match group.group_type {
+            ProxyGroupType::Select => ClashProxyGroup::Select {
+                name,
+                proxies,
+                r#use,
+                disable_udp,
+            },
+            ProxyGroupType::Relay => ClashProxyGroup::Relay {
+                name,
+                proxies,
+                disable_udp,
+                r#use,
+            },
+            ProxyGroupType::URLTest | ProxyGroupType::Smart => {
+                // Smart group is treated as url-test
+                ClashProxyGroup::UrlTest {
+                    name,
+                    proxies,
+                    url: group.url.clone(), // url is required for UrlTest
+                    interval: interval_opt,
+                    tolerance: tolerance_opt,
+                    lazy: if !group.lazy { Some(false) } else { None }, // None if true (default)
+                    disable_udp,
+                    r#use,
+                }
+            }
+            ProxyGroupType::Fallback => ClashProxyGroup::Fallback {
+                name,
+                proxies,
+                url: group.url.clone(), // url is required for Fallback
+                interval: interval_opt,
+                tolerance: tolerance_opt,
+                disable_udp,
+                r#use,
+            },
+            ProxyGroupType::LoadBalance => {
+                // Map persistent and evaluate_before_use to Option<bool>, None if false (default)
+                let persistent = if group.persistent { Some(true) } else { None };
+                let evaluate_before_use = if group.evaluate_before_use {
+                    Some(true)
+                } else {
+                    None
+                };
+
+                ClashProxyGroup::LoadBalance {
+                    name,
+                    proxies,
+                    strategy: group.strategy_str().to_string(),
+                    url: if group.url.is_empty() {
+                        None
+                    } else {
+                        Some(group.url.clone())
+                    }, // Optional for LoadBalance
+                    interval: interval_opt,
+                    tolerance: tolerance_opt,
+                    lazy: if group.lazy { None } else { Some(false) }, // None if true (default)
+                    disable_udp,
+                    r#use,
+                    persistent,
+                    evaluate_before_use,
+                }
+            }
+            ProxyGroupType::SSID => {
+                // SSID groups are not directly represented in the ClashProxyGroup enum
+                // and are typically handled differently by specific formatters (e.g., Surge, Loon).
+                // Skip conversion for now.
+                warn!(
+                    "Skipping SSID group '{}' during Clash enum conversion.",
+                    group.name
+                );
+                continue; // Skip adding this group
+            }
+        };
+        clash_groups.push(clash_group);
+    }
+
+    clash_groups
+}
+
 /// Convert proxies to Clash format
 ///
 /// This function converts a list of proxies to the Clash configuration format,
@@ -80,122 +209,17 @@ pub fn proxy_to_clash(
     clash_r: bool,
     ext: &mut ExtraSettings,
 ) -> String {
-    // Parse the base configuration
-    let mut yaml_node: YamlValue = match serde_yaml::from_str(base_conf) {
-        Ok(node) => node,
+    // Parse the base configuration into ClashYamlOutput, default if empty or error
+    let mut output: ClashYamlOutput = match serde_yaml::from_str(base_conf) {
+        Ok(parsed_output) => parsed_output,
         Err(e) => {
-            error!("Clash base loader failed with error: {}", e);
-            return String::new();
-        }
-    };
-
-    if yaml_node.is_null() {
-        yaml_node = YamlValue::Mapping(Mapping::new());
-    }
-
-    // Apply conversion to the YAML node
-    proxy_to_clash_yaml(
-        nodes,
-        &mut yaml_node,
-        ruleset_content_array,
-        extra_proxy_group,
-        clash_r,
-        ext,
-    );
-
-    // If nodelist mode is enabled, just return the YAML node
-    if ext.nodelist {
-        return match serde_yaml::to_string(&yaml_node) {
-            Ok(result) => result,
-            Err(_) => String::new(),
-        };
-    }
-
-    // Handle rule generation if enabled
-    if !ext.enable_rule_generator {
-        return match serde_yaml::to_string(&yaml_node) {
-            Ok(result) => result,
-            Err(_) => String::new(),
-        };
-    }
-
-    // Handle managed config and clash script
-    if !ext.managed_config_prefix.is_empty() || ext.clash_script {
-        // Set mode if it exists
-        if yaml_node.get("mode").is_some() {
-            if let Some(ref mut map) = yaml_node.as_mapping_mut() {
-                map.insert(
-                    YamlValue::String("mode".to_string()),
-                    YamlValue::String(
-                        if ext.clash_script {
-                            if ext.clash_new_field_name {
-                                "script"
-                            } else {
-                                "Script"
-                            }
-                        } else {
-                            if ext.clash_new_field_name {
-                                "rule"
-                            } else {
-                                "Rule"
-                            }
-                        }
-                        .to_string(),
-                    ),
-                );
+            if !base_conf.trim().is_empty() {
+                // Only warn if base_conf wasn't empty
+                warn!("Failed to parse base Clash config: {}. Using default.", e);
             }
+            ClashYamlOutput::default()
         }
-
-        // TODO: Implement renderClashScript
-        // For now, just return the YAML
-        return match serde_yaml::to_string(&yaml_node) {
-            Ok(result) => result,
-            Err(_) => String::new(),
-        };
-    }
-
-    // Generate rules and return combined output
-    let rules_str = ruleset_to_clash_str(
-        &yaml_node,
-        ruleset_content_array,
-        ext.overwrite_original_rules,
-        ext.clash_new_field_name,
-    );
-
-    let yaml_output = match serde_yaml::to_string(&yaml_node) {
-        Ok(result) => result,
-        Err(_) => String::new(),
     };
-
-    format!("{}{}", yaml_output, rules_str)
-}
-
-/// Convert proxies to Clash format with YAML node
-///
-/// This function modifies a YAML node in place to add Clash configuration
-/// for the provided proxy nodes.
-///
-/// # Arguments
-/// * `nodes` - List of proxy nodes to convert
-/// * `yaml_node` - YAML node to modify
-/// * `ruleset_content_array` - Array of ruleset contents to apply
-/// * `extra_proxy_group` - Extra proxy group configurations
-/// * `clash_r` - Whether to use ClashR format
-/// * `ext` - Extra settings for conversion
-pub fn proxy_to_clash_yaml(
-    nodes: &mut Vec<Proxy>,
-    yaml_node: &mut serde_yaml::Value,
-    _ruleset_content_array: &Vec<RulesetContent>,
-    extra_proxy_group: &ProxyGroupConfigs,
-    clash_r: bool,
-    ext: &mut ExtraSettings,
-) {
-    // Style settings - in C++ this is used to set serialization style but in Rust we have less control
-    // over the serialization format. We keep them for compatibility but their actual effect may differ.
-    let _proxy_block = ext.clash_proxies_style == "block";
-    let _proxy_compact = ext.clash_proxies_style == "compact";
-    let _group_block = ext.clash_proxy_groups_style == "block";
-    let _group_compact = ext.clash_proxy_groups_style == "compact";
 
     // Create JSON structure for the proxies
     let mut proxies_json = Vec::new();
@@ -265,40 +289,30 @@ pub fn proxy_to_clash_yaml(
         proxies_json.push(clash_proxy);
     }
 
+    // Handle nodelist mode specifically
     if ext.nodelist {
-        let mut provider = YamlValue::Mapping(Mapping::new());
-        provider["proxies"] =
-            serde_yaml::to_value(&proxies_json).unwrap_or(YamlValue::Sequence(Vec::new()));
-        *yaml_node = provider;
-        return;
+        let mut provider = serde_yaml::Mapping::new();
+        provider.insert(
+            serde_yaml::Value::String("proxies".to_string()),
+            serde_yaml::to_value(&proxies_json).unwrap_or(serde_yaml::Value::Sequence(Vec::new())),
+        );
+        // Serialize just the provider map
+        return match serde_yaml::to_string(&provider) {
+            Ok(result) => result,
+            Err(e) => {
+                error!("Failed to serialize nodelist: {}", e);
+                String::new()
+            }
+        };
     }
 
-    // Update the YAML node with proxies
-    if let Some(ref mut map) = yaml_node.as_mapping_mut() {
-        // Convert JSON proxies array to YAML
-        let proxies_yaml_value =
-            serde_yaml::to_value(&proxies_json).unwrap_or(YamlValue::Sequence(Vec::new()));
-        if ext.clash_new_field_name {
-            map.insert(YamlValue::String("proxies".to_string()), proxies_yaml_value);
-        } else {
-            map.insert(YamlValue::String("Proxy".to_string()), proxies_yaml_value);
-        }
-    }
+    // Update the ClashYamlOutput with proxies
+    output.proxies = proxies_json;
 
     // Add proxy groups if present
     if !extra_proxy_group.is_empty() {
-        // Get existing proxy groups if any
-        let mut original_groups = if ext.clash_new_field_name {
-            match yaml_node.get("proxy-groups") {
-                Some(YamlValue::Sequence(seq)) => seq.clone(),
-                _ => Sequence::new(),
-            }
-        } else {
-            match yaml_node.get("Proxy Group") {
-                Some(YamlValue::Sequence(seq)) => seq.clone(),
-                _ => Sequence::new(),
-            }
-        };
+        // Get existing proxy groups from parsed base config
+        let mut original_groups = std::mem::take(&mut output.proxy_groups);
 
         // Build filtered nodes map for each group
         let mut filtered_nodes_map = HashMap::new();
@@ -316,53 +330,98 @@ pub fn proxy_to_clash_yaml(
             filtered_nodes_map.insert(group.name.clone(), filtered_nodes);
         }
 
-        // Convert proxy groups using the new serialization
-        let clash_proxy_groups = convert_proxy_groups(extra_proxy_group, Some(&filtered_nodes_map));
+        // Convert proxy groups using the new serialization struct
+        let clash_proxy_groups =
+            convert_proxy_groups_to_enum(extra_proxy_group, Some(&filtered_nodes_map));
 
-        // Merge with existing groups
-        for group in clash_proxy_groups {
-            // Check if this group should replace an existing one with the same name
+        // Merge with existing groups (replace by name or append)
+        let mut final_groups = Vec::new();
+        let mut processed_indices = HashSet::new(); // Track indices of original groups processed
+
+        for new_group in clash_proxy_groups {
             let mut replaced = false;
-            for i in 0..original_groups.len() {
-                if let Some(YamlValue::Mapping(map)) = original_groups.get(i) {
-                    if let Some(YamlValue::String(name)) =
-                        map.get(&YamlValue::String("name".to_string()))
-                    {
-                        if name == &group.name {
-                            if let Some(elem) = original_groups.get_mut(i) {
-                                // Convert the group to YAML and replace
-                                if let Ok(group_yaml) = serde_yaml::to_value(&group) {
-                                    *elem = group_yaml;
-                                    replaced = true;
-                                    break;
-                                }
-                            }
-                        }
-                    }
+            for (i, existing_group) in original_groups.iter().enumerate() {
+                // Need a way to get the name from ClashProxyGroup enum
+                // Assuming a method `name()` exists or accessing a public field
+                let existing_name = existing_group.name();
+
+                // Get name from the new group (which is now also an enum)
+                let new_name = new_group.name();
+
+                // Compare names
+                if existing_name == new_name {
+                    final_groups.push(new_group.clone()); // Use the new group
+                    processed_indices.insert(i);
+                    replaced = true;
+                    break;
                 }
             }
-
-            // If not replaced, add to the list
             if !replaced {
-                if let Ok(group_yaml) = serde_yaml::to_value(&group) {
-                    original_groups.push(group_yaml);
-                }
+                final_groups.push(new_group); // Add new group if no existing one matched
             }
         }
 
-        // Update the YAML node with proxy groups
-        if let Some(ref mut map) = yaml_node.as_mapping_mut() {
-            if ext.clash_new_field_name {
-                map.insert(
-                    YamlValue::String("proxy-groups".to_string()),
-                    YamlValue::Sequence(original_groups),
-                );
-            } else {
-                map.insert(
-                    YamlValue::String("Proxy Group".to_string()),
-                    YamlValue::Sequence(original_groups),
-                );
+        // Add back original groups that were not replaced
+        for (i, existing_group) in original_groups.into_iter().enumerate() {
+            if !processed_indices.contains(&i) {
+                final_groups.push(existing_group);
             }
+        }
+
+        // Update the ClashYamlOutput with merged proxy groups
+        output.proxy_groups = final_groups;
+    }
+
+    // Handle rule generation if enabled
+    if ext.enable_rule_generator {
+        // Generate rules using the refactored function
+        let mut generated_rules = ruleset_to_clash(ruleset_content_array);
+
+        // Prepend existing rules if not overwriting
+        if !ext.overwrite_original_rules {
+            let mut existing_rules = std::mem::take(&mut output.rules);
+            existing_rules.append(&mut generated_rules);
+            output.rules = existing_rules;
+        } else {
+            output.rules = generated_rules;
+        }
+
+        // Handle managed config and clash script mode update
+        if !ext.managed_config_prefix.is_empty() || ext.clash_script {
+            // Set mode based on clash_script and clash_new_field_name
+            let mode_str = if ext.clash_script {
+                // Clash script mode names are capitalized by default
+                if ext.clash_new_field_name {
+                    "script"
+                } else {
+                    "Script"
+                }
+            } else {
+                // Rule mode names are lowercase by default
+                if ext.clash_new_field_name {
+                    "rule"
+                } else {
+                    "Rule" // Note: Old clash might expect "Rule", check compatibility
+                }
+            };
+            output.mode = Some(mode_str.to_string());
+
+            // TODO: Implement renderClashScript - affects final output string, not just mode
+            // For now, serialization below handles the structure based on the set mode.
+        }
+    } else {
+        // If rule generation is disabled, ensure rules from base_conf are kept
+        // (This happens by default as we parsed base_conf into output)
+    }
+
+    // Serialize the final ClashYamlOutput using the wrapper
+    let serializable_output = SerializableClashYamlOutput::new(&output, ext.clash_new_field_name);
+
+    match serde_yaml::to_string(&serializable_output) {
+        Ok(result) => result,
+        Err(e) => {
+            error!("Failed to serialize Clash config: {}", e);
+            String::new()
         }
     }
 }

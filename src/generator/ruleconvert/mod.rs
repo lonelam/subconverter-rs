@@ -13,6 +13,5 @@ pub mod ruleset_to_sing_box;
 pub mod ruleset_to_surge;
 
 pub use convert_ruleset::convert_ruleset;
-pub use ruleset_to_clash_str::ruleset_to_clash_str;
 pub use ruleset_to_sing_box::ruleset_to_sing_box;
 pub use ruleset_to_surge::ruleset_to_surge;
