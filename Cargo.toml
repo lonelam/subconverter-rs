@@ -70,7 +70,13 @@ console_log = "1.0"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 awc = { version = "3.6.0", features = ["rustls"] }
-tokio = { version = "1.43.0", features = ["rt", "fs", "sync", "io-util"] }
+tokio = { version = "1.43.0", features = [
+    "rt",
+    "fs",
+    "sync",
+    "io-util",
+    "macros",
+] }
 
 [dev-dependencies]
 tempfile = "3.10.1"

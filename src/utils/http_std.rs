@@ -285,3 +285,142 @@ pub fn get_sub_info_from_response(
         false
     }
 }
+
+/// Makes an HTTP POST request to the specified URL
+///
+/// # Arguments
+/// * `url` - The URL to request
+/// * `data` - The request body data
+/// * `proxy_config` - Proxy configuration
+/// * `headers` - Optional custom headers
+///
+/// # Returns
+/// * `Ok(HttpResponse)` - The response with status, body, and headers
+/// * `Err(HttpError)` - Error details if the request failed
+pub async fn web_post_async(
+    url: &str,
+    data: String,
+    proxy_config: &ProxyConfig,
+    headers: Option<&HashMap<CaseInsensitiveString, String>>,
+) -> Result<HttpResponse, HttpError> {
+    let mut client_builder = Client::builder().timeout(Duration::from_secs(DEFAULT_TIMEOUT));
+
+    // TODO: Implement proxy support for awc if needed, similar to commented-out
+    // code in web_get_async if let Some(proxy) = &proxy_config.proxy {
+    //     if !proxy.is_empty() { ... }
+    // }
+
+    let client = client_builder.finish();
+
+    let mut client_request = client
+        .post(url)
+        .insert_header(("Content-Type", "application/json")); // Assume JSON for POST/PATCH
+
+    if let Some(custom_headers) = headers {
+        for (key, value) in custom_headers {
+            client_request = client_request.insert_header((key.to_string(), value.to_string()));
+        }
+    }
+
+    // Send request with body
+    let mut response = match client_request.send_body(data).await {
+        Ok(resp) => resp,
+        Err(e) => {
+            return Err(HttpError {
+                message: format!("Failed to send POST request: {}", e),
+                status: None,
+            });
+        }
+    };
+
+    let status = response.status().as_u16();
+
+    let mut resp_headers = HashMap::new();
+    for (key, value) in response.headers() {
+        if let Ok(v) = value.to_str() {
+            resp_headers.insert(key.to_string(), v.to_string());
+        }
+    }
+
+    match response.body().limit(10_000_000).await {
+        // Limit body size (e.g., 10MB)
+        Ok(body) => Ok(HttpResponse {
+            status,
+            body: String::from_utf8(body.to_vec())
+                .unwrap_or_else(|_| "Invalid UTF-8 body".to_string()),
+            headers: resp_headers,
+        }),
+        Err(e) => Err(HttpError {
+            message: format!("Failed to read POST response body: {}", e),
+            status: Some(status),
+        }),
+    }
+}
+
+/// Makes an HTTP PATCH request to the specified URL
+///
+/// # Arguments
+/// * `url` - The URL to request
+/// * `data` - The request body data
+/// * `proxy_config` - Proxy configuration
+/// * `headers` - Optional custom headers
+///
+/// # Returns
+/// * `Ok(HttpResponse)` - The response with status, body, and headers
+/// * `Err(HttpError)` - Error details if the request failed
+pub async fn web_patch_async(
+    url: &str,
+    data: String,
+    proxy_config: &ProxyConfig,
+    headers: Option<&HashMap<CaseInsensitiveString, String>>,
+) -> Result<HttpResponse, HttpError> {
+    let mut client_builder = Client::builder().timeout(Duration::from_secs(DEFAULT_TIMEOUT));
+
+    // TODO: Implement proxy support for awc if needed
+
+    let client = client_builder.finish();
+
+    let mut client_request = client
+        .patch(url)
+        .insert_header(("Content-Type", "application/json")); // Assume JSON
+
+    if let Some(custom_headers) = headers {
+        for (key, value) in custom_headers {
+            client_request = client_request.insert_header((key.to_string(), value.to_string()));
+        }
+    }
+
+    // Send request with body
+    let mut response = match client_request.send_body(data).await {
+        Ok(resp) => resp,
+        Err(e) => {
+            return Err(HttpError {
+                message: format!("Failed to send PATCH request: {}", e),
+                status: None,
+            });
+        }
+    };
+
+    let status = response.status().as_u16();
+
+    let mut resp_headers = HashMap::new();
+    for (key, value) in response.headers() {
+        if let Ok(v) = value.to_str() {
+            resp_headers.insert(key.to_string(), v.to_string());
+        }
+    }
+
+    match response.body().limit(10_000_000).await {
+        // Limit body size
+        Ok(body) => Ok(HttpResponse {
+            status,
+            body: String::from_utf8(body.to_vec())
+                .unwrap_or_else(|_| "Invalid UTF-8 body".to_string()),
+            headers: resp_headers,
+        }),
+        Err(e) => Err(HttpError {
+            message: format!("Failed to read PATCH response body: {}", e),
+            status: Some(status),
+        }),
+    }
+}

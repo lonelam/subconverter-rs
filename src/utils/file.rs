@@ -4,12 +4,16 @@ use crate::utils::http::{parse_proxy, web_get_async};
 // Import platform-specific implementations
 #[cfg(not(target_arch = "wasm32"))]
 mod platform {
-    pub use crate::utils::file_std::*;
+    pub use crate::utils::file_std::{
+        copy_file, file_exists, file_get, file_get_async, read_file_async,
+    };
 }
 
 #[cfg(target_arch = "wasm32")]
 mod platform {
-    pub use crate::utils::file_wasm::*;
+    pub use crate::utils::file_wasm::{
+        copy_file, file_exists, file_get, file_get_async, read_file_async,
+    };
 }
 
 // Re-export platform-specific implementations

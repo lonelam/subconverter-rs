@@ -4,12 +4,18 @@ use std::collections::HashMap;
 // Import platform-specific implementations
 #[cfg(not(target_arch = "wasm32"))]
 mod platform {
-    pub use crate::utils::http_std::*;
+    pub use crate::utils::http_std::{
+        get_sub_info_from_header, get_sub_info_from_response, parse_proxy, web_get, web_get_async,
+        ProxyConfig,
+    };
 }
 
 #[cfg(target_arch = "wasm32")]
 mod platform {
-    pub use crate::utils::http_wasm::*;
+    pub use crate::utils::http_wasm::{
+        get_sub_info_from_header, get_sub_info_from_response, parse_proxy, web_get, web_get_async,
+        ProxyConfig,
+    };
 }
 
 // Re-export platform-specific implementations
@@ -17,7 +23,8 @@ pub use platform::*;
 
 /// Asynchronous function that returns only the body content if status is 2xx,
 /// otherwise treats as error
-/// This provides backward compatibility with code expecting only successful responses
+/// This provides backward compatibility with code expecting only successful
+/// responses
 pub async fn web_get_content_async(
     url: &str,
     proxy_config: &ProxyConfig,
