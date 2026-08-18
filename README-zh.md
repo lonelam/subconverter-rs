@@ -64,7 +64,7 @@ cargo build --release --features=web-api
 
 ## 📚 文档
 
-完整使用文档见仓库内 wiki：**[wiki/Home.md](wiki/Home.md)** —— 快速开始（二进制/Docker/源码）、`/sub` 完整参数表、协议与目标格式支持矩阵、进阶用法（外部配置、节点筛选语法）以及库/WASM 集成方式。
+完整使用文档见 **[项目 Wiki](https://github.com/lonelam/subconverter-rs/wiki)** —— 快速开始（二进制/Docker/源码）、`/sub` 完整参数表、协议与目标格式支持矩阵、进阶用法（外部配置、节点筛选语法）以及库/WASM 集成方式。Wiki 源文件随代码版本化在仓库的 [`wiki/`](wiki/) 目录。
 
 ## 📋 目录
 
