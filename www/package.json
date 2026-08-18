@@ -24,7 +24,7 @@
     "postcss": "^8.5.26",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
-    "subconverter-wasm": "0.2.35"
+    "subconverter-wasm": "0.2.36"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.6",
