@@ -118,7 +118,9 @@ jobs:
         include:
           - arch: x86_64
             artifact: subconverter-macos-x86_64
-            os: macos-13
+            # macos-13 (the last plain Intel image) was retired; GitHub
+            # provides macos-15-intel as the transitional Intel runner
+            os: macos-15-intel
             target: x86_64-apple-darwin
           - arch: aarch64
             artifact: subconverter-macos-aarch64
