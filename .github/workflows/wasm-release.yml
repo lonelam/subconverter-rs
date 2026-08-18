@@ -169,7 +169,8 @@ jobs:
       - name: Publish to crates.io
         run: |
           VERSION="${{ steps.set-version.outputs.version }}"
-          if curl -sf https://crates.io/api/v1/crates/subconverter/versions | jq -e --arg v "$VERSION" '.versions[] | select(.num == $v)' >/dev/null; then
+          # crates.io API rejects requests without a User-Agent
+          if curl -sf -A "subconverter-rs-release-workflow" https://crates.io/api/v1/crates/subconverter/versions | jq -e --arg v "$VERSION" '.versions[] | select(.num == $v)' >/dev/null; then
             echo "subconverter ${VERSION} already on crates.io, skipping publish"
             exit 0
           fi
