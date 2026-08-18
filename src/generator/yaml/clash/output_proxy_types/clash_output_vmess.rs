@@ -1,6 +1,6 @@
 use super::CommonProxyOptions;
 use crate::models::Proxy;
-use crate::utils::{is_empty_option_string, is_u32_option_zero};
+use crate::utils::is_empty_option_string;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -19,6 +19,10 @@ pub struct VmessProxy {
     pub cipher: Option<String>,
     #[serde(skip_serializing_if = "is_empty_option_string")]
     pub network: Option<String>,
+    #[serde(skip_serializing_if = "is_empty_option_string")]
+    pub servername: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub alpn: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub ws_opts: Option<VmessWsOptions>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -59,7 +63,10 @@ pub struct VmessH2Options {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct VmessGrpcOptions {
-    #[serde(skip_serializing_if = "is_empty_option_string")]
+    #[serde(
+        rename = "grpc-service-name",
+        skip_serializing_if = "is_empty_option_string"
+    )]
     pub service_name: Option<String>,
 }
 
@@ -72,6 +79,8 @@ impl VmessProxy {
             alter_id: 0,
             cipher: None,
             network: None,
+            servername: None,
+            alpn: None,
             ws_opts: None,
             http_opts: None,
             h2_opts: None,
@@ -87,7 +96,8 @@ impl From<Proxy> for VmessProxy {
                 .udp(proxy.udp)
                 .tfo(proxy.tcp_fast_open)
                 .skip_cert_verify(proxy.allow_insecure)
-                .sni(proxy.sni.clone())
+                .tls(if proxy.tls_secure { Some(true) } else { None })
+                .client_fingerprint(proxy.client_fingerprint.clone())
                 .build();
 
         let mut vmess = VmessProxy::new(common);
@@ -96,6 +106,13 @@ impl From<Proxy> for VmessProxy {
         vmess.alter_id = proxy.alter_id as u32;
         vmess.cipher = proxy.encrypt_method.clone();
         vmess.network = proxy.transfer_protocol.clone();
+        // Clash vmess uses `servername` for SNI
+        vmess.servername = proxy.server_name.clone().or_else(|| proxy.sni.clone());
+        if !proxy.alpn.is_empty() {
+            let mut alpn: Vec<String> = proxy.alpn.iter().cloned().collect();
+            alpn.sort();
+            vmess.alpn = Some(alpn);
+        }
 
         if let Some(network) = &proxy.transfer_protocol {
             match network.as_str() {

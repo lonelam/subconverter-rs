@@ -54,6 +54,45 @@ mod bool_deserializer {
         }
     }
 }
+
+/// Helper module for numeric query parameters that may arrive as strings
+/// (e.g. when the query is forwarded as JSON by the WASM/serverless wrapper).
+mod number_deserializer {
+    use serde::{self, Deserialize, Deserializer};
+
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum NumberOrString {
+        Number(u64),
+        String(String),
+    }
+
+    pub fn deserialize_option_u32<'de, D>(deserializer: D) -> Result<Option<u32>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        match Option::<NumberOrString>::deserialize(deserializer)? {
+            Some(NumberOrString::Number(n)) => Ok(Some(n as u32)),
+            Some(NumberOrString::String(s)) => {
+                if s.is_empty() {
+                    Ok(None)
+                } else {
+                    s.trim().parse::<u32>().map(Some).map_err(|_| {
+                        serde::de::Error::custom(format!("invalid number: {}", s))
+                    })
+                }
+            }
+            None => Ok(None),
+        }
+    }
+
+    pub fn deserialize_u32_with_default<'de, D>(deserializer: D) -> Result<u32, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        Ok(deserialize_option_u32(deserializer)?.unwrap_or_else(super::default_ver))
+    }
+}
 // END Helper function
 
 /// Query parameters for subscription conversion
@@ -62,7 +101,10 @@ pub struct SubconverterQuery {
     /// Target format
     pub target: Option<String>,
     /// Surge version number
-    #[serde(default = "default_ver")]
+    #[serde(
+        default = "default_ver",
+        deserialize_with = "number_deserializer::deserialize_u32_with_default"
+    )]
     pub ver: u32,
     /// Clash new field name
     #[serde(
@@ -183,6 +225,10 @@ pub struct SubconverterQuery {
     )]
     pub rename_node: Option<bool>,
     /// Update interval in seconds
+    #[serde(
+        default,
+        deserialize_with = "number_deserializer::deserialize_option_u32"
+    )]
     pub interval: Option<u32>,
     /// Update strict mode
     #[serde(
@@ -350,11 +396,10 @@ pub async fn sub_process(
         Some(interval) => interval,
         None => global.update_interval,
     });
-    // Check if we should authorize the request, if we are in API mode
-    #[cfg(not(feature = "js-runtime"))]
-    let authorized = false;
-
-    #[cfg(feature = "js-runtime")]
+    // Check if we should authorize the request. Outside API mode every
+    // request is authorized; in API mode a matching access token is required.
+    // (This must not depend on the js-runtime feature — see issue #46: it
+    // also gates local-file access for insert_url/default_url, issue #48.)
     let authorized =
         !global.api_mode || query.token.as_deref().unwrap_or_default() == global.api_access_token;
     builder.authorized(authorized);
@@ -704,4 +749,32 @@ pub fn init_settings_wasm(pref_path: &str) -> Promise {
     };
 
     future_to_promise(future)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::SubconverterQuery;
+
+    /// Reproduces https://github.com/lonelam/subconverter-rs/issues/43 and
+    /// https://github.com/lonelam/subconverter-rs/issues/32 — query values
+    /// forwarded as JSON strings must still parse.
+    #[test]
+    fn test_query_accepts_string_numbers_and_bools() {
+        let json = r#"{"target":"clash","url":"https://example.com/sub","interval":"180","ver":"4","list":"1","udp":"1","remove_emoji":"1"}"#;
+        let query: SubconverterQuery = serde_json::from_str(json).expect("query must parse");
+        assert_eq!(query.interval, Some(180));
+        assert_eq!(query.ver, 4);
+        assert_eq!(query.list, Some(true));
+        assert_eq!(query.udp, Some(true));
+        assert_eq!(query.remove_emoji, Some(true));
+    }
+
+    #[test]
+    fn test_query_accepts_native_types() {
+        let json = r#"{"target":"clash","interval":180,"ver":4,"list":true}"#;
+        let query: SubconverterQuery = serde_json::from_str(json).expect("query must parse");
+        assert_eq!(query.interval, Some(180));
+        assert_eq!(query.ver, 4);
+        assert_eq!(query.list, Some(true));
+    }
 }

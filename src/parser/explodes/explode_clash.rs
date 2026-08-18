@@ -4,49 +4,56 @@ use crate::{
         SNELL_DEFAULT_GROUP, SOCKS_DEFAULT_GROUP, SSR_DEFAULT_GROUP, SS_DEFAULT_GROUP,
         TROJAN_DEFAULT_GROUP, V2RAY_DEFAULT_GROUP, WG_DEFAULT_GROUP,
     },
-    parser::yaml::clash::parse_clash_yaml,
+    parser::yaml::clash::{extract_proxy_entries, ClashProxyYamlInput},
 };
 use serde_yaml::Value;
 
-/// Parse a Clash YAML configuration into a vector of Proxy objects
+/// Parse a Clash YAML configuration into a vector of Proxy objects.
+///
+/// Each proxy entry is parsed independently: the typed serde-based parser is
+/// tried first and, if it rejects the entry, the legacy field-by-field parser
+/// is used as a fallback. A malformed node is logged and skipped instead of
+/// discarding the whole subscription.
 pub fn explode_clash(content: &str, nodes: &mut Vec<Proxy>) -> bool {
-    // 首先尝试使用新的YAML解析器
-    match parse_clash_yaml(content) {
-        Ok(mut proxies) => {
-            if !proxies.is_empty() {
-                nodes.append(&mut proxies);
-                return true;
-            }
-        }
-        Err(e) => {
-            // 失败时记录错误并尝试旧的解析方式
-            eprintln!("新YAML解析器失败: {}", e);
-        }
-    }
-
-    // 回退到旧的解析方式
-    // Parse the YAML content
     let yaml: Value = match serde_yaml::from_str(content) {
         Ok(y) => y,
-        Err(_) => return false,
+        Err(e) => {
+            log::warn!("Failed to parse Clash YAML: {}", e);
+            return false;
+        }
     };
 
-    // Extract proxies section
-    let proxies = match yaml.get("proxies") {
-        Some(Value::Sequence(seq)) => seq,
-        _ => match yaml.get("Proxy") {
-            Some(Value::Sequence(seq)) => seq,
-            _ => return false,
-        },
+    let proxies = match extract_proxy_entries(&yaml) {
+        Some(seq) => seq,
+        None => return false,
     };
 
     let mut success = false;
 
-    // Process each proxy in the sequence
-    for proxy in proxies {
-        if let Some(node) = parse_clash_proxy(proxy) {
+    for entry in proxies {
+        // Try the typed parser first
+        match serde_yaml::from_value::<ClashProxyYamlInput>(entry.clone()) {
+            Ok(typed) => {
+                if let Some(node) = typed.into_proxy() {
+                    nodes.push(node);
+                    success = true;
+                    continue;
+                }
+            }
+            Err(e) => {
+                log::debug!(
+                    "Typed Clash proxy parser rejected entry ({}), trying legacy parser",
+                    e
+                );
+            }
+        }
+
+        // Fall back to the legacy per-entry parser
+        if let Some(node) = parse_clash_proxy(entry) {
             nodes.push(node);
             success = true;
+        } else {
+            log::warn!("Skipping unparsable Clash proxy entry");
         }
     }
 
@@ -230,9 +237,6 @@ fn parse_clash_ss(
         // Not implementing the full C++ transformation for now
     }
 
-    // Convert pluginopts String to &str
-    let pluginopts_str = Box::leak(pluginopts.into_boxed_str());
-
     Some(Proxy::ss_construct(
         SS_DEFAULT_GROUP,
         name,
@@ -241,7 +245,7 @@ fn parse_clash_ss(
         password,
         cipher,
         plugin,
-        pluginopts_str,
+        &pluginopts,
         udp,
         tfo,
         skip_cert_verify,
@@ -545,7 +549,11 @@ fn parse_clash_trojan(
         .unwrap_or("");
 
     // Get SNI and network settings
-    let sni = proxy.get("sni").and_then(|v| v.as_str()).unwrap_or("");
+    let sni = proxy
+        .get("sni")
+        .or_else(|| proxy.get("servername"))
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
     let network = proxy.get("network").and_then(|v| v.as_str()).unwrap_or("");
 
     // Get path and host, if any
@@ -576,7 +584,19 @@ fn parse_clash_trojan(
         }
     }
 
-    Some(Proxy::trojan_construct(
+    // Handle gRPC options if specified
+    if network == "grpc" {
+        if let Some(grpc_opts) = proxy.get("grpc-opts").and_then(|v| v.as_mapping()) {
+            if let Some(service_name) = grpc_opts
+                .get(&Value::String("grpc-service-name".to_string()))
+                .and_then(|v| v.as_str())
+            {
+                path = service_name.to_string();
+            }
+        }
+    }
+
+    let mut node = Proxy::trojan_construct(
         TROJAN_DEFAULT_GROUP.to_string(),
         name.to_string(),
         server.to_string(),
@@ -592,7 +612,54 @@ fn parse_clash_trojan(
         skip_cert_verify,
         None,
         Some(underlying_proxy.to_string()),
-    ))
+    );
+
+    // Preserve TLS extras that the constructor does not cover
+    for alpn in yaml_string_or_seq(proxy.get("alpn")) {
+        node.alpn.insert(alpn);
+    }
+    node.fingerprint = proxy
+        .get("fingerprint")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
+    node.client_fingerprint = proxy
+        .get("client-fingerprint")
+        .or_else(|| proxy.get("utls-fingerprint"))
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
+
+    Some(node)
+}
+
+/// Read a YAML value that may be either a scalar string or a sequence of
+/// strings (e.g. `alpn: h3` vs `alpn: [h3, h2]`).
+fn yaml_string_or_seq(value: Option<&Value>) -> Vec<String> {
+    match value {
+        Some(Value::String(s)) if !s.is_empty() => {
+            s.split(',').map(|part| part.trim().to_string()).collect()
+        }
+        Some(Value::Sequence(seq)) => seq
+            .iter()
+            .filter_map(|v| v.as_str().map(|s| s.to_string()))
+            .collect(),
+        _ => Vec::new(),
+    }
+}
+
+/// Read a YAML value that may be a number or a string with a bandwidth unit.
+fn yaml_speed_mbps(value: Option<&Value>) -> Option<u32> {
+    match value {
+        Some(Value::Number(n)) => n.as_u64().map(|v| v as u32),
+        Some(Value::String(s)) => {
+            let speed = crate::utils::deserialize::parse_speed_mbps(s);
+            if speed > 0 {
+                Some(speed)
+            } else {
+                None
+            }
+        }
+        _ => None,
+    }
 }
 
 /// Parse a Snell proxy from Clash YAML
@@ -738,7 +805,11 @@ fn parse_clash_hysteria(
 ) -> Option<Proxy> {
     // Extract Hysteria-specific fields
     let auth = proxy.get("auth").and_then(|v| v.as_str()).unwrap_or("");
-    let auth_str = proxy.get("auth-str").and_then(|v| v.as_str()).unwrap_or("");
+    let auth_str = proxy
+        .get("auth-str")
+        .or_else(|| proxy.get("auth_str"))
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
     let obfs = proxy.get("obfs").and_then(|v| v.as_str()).unwrap_or("");
     let protocol = proxy
         .get("protocol")
@@ -754,27 +825,13 @@ fn parse_clash_hysteria(
     // Get ports range if specified
     let ports = proxy.get("ports").and_then(|v| v.as_str()).unwrap_or("");
 
-    // Get up/down speeds
-    let up_mbps = proxy.get("up").and_then(|v| v.as_u64()).unwrap_or(0);
-    let down_mbps = proxy.get("down").and_then(|v| v.as_u64()).unwrap_or(0);
-    let up_speed = if up_mbps > 0 {
-        Some(up_mbps as u32)
-    } else {
-        None
-    };
-    let down_speed = if down_mbps > 0 {
-        Some(down_mbps as u32)
-    } else {
-        None
-    };
+    // Get up/down speeds; values may be numbers or strings with units
+    let up_speed = yaml_speed_mbps(proxy.get("up"));
+    let down_speed = yaml_speed_mbps(proxy.get("down"));
 
     // Get TLS settings
     let sni = proxy.get("sni").and_then(|v| v.as_str()).unwrap_or("");
-    let alpn_value = proxy.get("alpn").and_then(|v| v.as_str()).unwrap_or("");
-    let mut alpn = Vec::new();
-    if !alpn_value.is_empty() {
-        alpn.push(alpn_value.to_string());
-    }
+    let alpn = yaml_string_or_seq(proxy.get("alpn"));
 
     let fingerprint = proxy
         .get("fingerprint")
@@ -950,4 +1007,139 @@ fn parse_clash_hysteria2(
         skip_cert_verify,
         underlying_proxy,
     ))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::generator::yaml::clash::clash_output::ClashProxyOutput;
+
+    fn roundtrip_to_yaml(input: &str) -> Vec<serde_yaml::Value> {
+        let mut nodes = Vec::new();
+        assert!(explode_clash(input, &mut nodes), "input must parse");
+        nodes
+            .into_iter()
+            .map(|node| {
+                let output = ClashProxyOutput::from(node);
+                serde_yaml::to_value(&output).expect("output must serialize")
+            })
+            .collect()
+    }
+
+    /// One malformed proxy must not discard the rest of the subscription.
+    #[test]
+    fn test_malformed_entry_does_not_break_subscription() {
+        let input = r#"
+proxies:
+  - {name: broken, type: ss, server: s1.example.com, port: not-a-port}
+  - {name: good, type: trojan, server: s2.example.com, port: 443, password: pw}
+"#;
+        let mut nodes = Vec::new();
+        assert!(explode_clash(input, &mut nodes));
+        assert_eq!(nodes.len(), 1);
+        assert_eq!(nodes[0].remark, "good");
+    }
+
+    /// Issue #37: hysteria up/down with units and alpn list survive a
+    /// clash -> clash roundtrip, even with duplicate auth keys present.
+    #[test]
+    fn test_hysteria_roundtrip_keeps_speed_and_alpn() {
+        let input = r#"
+proxies:
+  - {name: serves, server: 192.168.1.1, port: 62003, type: hysteria, auth_str: auth, auth-str: auth, up: 1000 Mbps, down: 1000 Mbps, protocol: none, skip-cert-verify: true, alpn: [h3]}
+"#;
+        let outputs = roundtrip_to_yaml(input);
+        assert_eq!(outputs.len(), 1);
+        let out = &outputs[0];
+        assert_eq!(out["up"].as_str(), Some("1000 Mbps"));
+        assert_eq!(out["down"].as_str(), Some("1000 Mbps"));
+        assert_eq!(out["alpn"][0].as_str(), Some("h3"));
+        assert_eq!(out["auth-str"].as_str(), Some("auth"));
+    }
+
+    /// Issue #40: vmess tls/servername/udp survive a clash -> clash roundtrip.
+    #[test]
+    fn test_vmess_roundtrip_keeps_tls_and_servername() {
+        let input = r#"
+proxies:
+  - {"name":"vmess-jp","type":"vmess","server":"tokyo.example.top","port":10000,"uuid":"b445361a-abcf-aaaa-a97a-0bf4136d6ddc","alterId":0,"cipher":"auto","udp":true,"tls":true,"network":"ws","ws-opts":{"path":"/vm","headers":{"Host":"tokyo.example.top"}},"servername":"tokyo.example.top"}
+"#;
+        let outputs = roundtrip_to_yaml(input);
+        let out = &outputs[0];
+        assert_eq!(out["tls"].as_bool(), Some(true));
+        assert_eq!(out["udp"].as_bool(), Some(true));
+        assert_eq!(out["servername"].as_str(), Some("tokyo.example.top"));
+        assert_eq!(out["ws-opts"]["path"].as_str(), Some("/vm"));
+        assert_eq!(
+            out["ws-opts"]["headers"]["Host"].as_str(),
+            Some("tokyo.example.top")
+        );
+    }
+
+    /// Issues #41/#42: vless reality-opts survive a clash -> clash roundtrip.
+    #[test]
+    fn test_vless_roundtrip_keeps_reality_opts() {
+        let input = r#"
+proxies:
+  - {"name":"reality","type":"vless","server":"2.22.22.22","port":13340,"uuid":"56b8aaaa-c339-4502-86ae-9d2a20dcbbbb","network":"grpc","tls":true,"udp":true,"client-fingerprint":"chrome","grpc-opts":{"grpc-service-name":"grpc"},"reality-opts":{"public-key":"bY9DOyBwDrix8ArirlAd","short-id":""},"smux":{"enabled":true},"servername":"addons.mozilla.org"}
+"#;
+        let outputs = roundtrip_to_yaml(input);
+        let out = &outputs[0];
+        assert_eq!(
+            out["reality-opts"]["public-key"].as_str(),
+            Some("bY9DOyBwDrix8ArirlAd")
+        );
+        assert_eq!(out["client-fingerprint"].as_str(), Some("chrome"));
+        assert_eq!(out["grpc-opts"]["grpc-service-name"].as_str(), Some("grpc"));
+        assert_eq!(out["servername"].as_str(), Some("addons.mozilla.org"));
+        assert_eq!(out["tls"].as_bool(), Some(true));
+    }
+
+    /// Issue #44: trojan alpn and fingerprint survive a clash -> clash
+    /// roundtrip; no empty plugin-opts are emitted for plain ss nodes (#38).
+    #[test]
+    fn test_trojan_roundtrip_keeps_alpn() {
+        let input = r#"
+proxies:
+  - name: t1
+    type: trojan
+    server: example.com
+    port: 443
+    password: pw
+    udp: true
+    tls: true
+    alpn: [h2, http/1.1]
+    skip-cert-verify: false
+    utls-fingerprint: chrome
+"#;
+        let outputs = roundtrip_to_yaml(input);
+        let out = &outputs[0];
+        let alpn: Vec<&str> = out["alpn"]
+            .as_sequence()
+            .expect("alpn must be a sequence")
+            .iter()
+            .filter_map(|v| v.as_str())
+            .collect();
+        assert!(alpn.contains(&"h2"));
+        assert!(alpn.contains(&"http/1.1"));
+        assert_eq!(out["client-fingerprint"].as_str(), Some("chrome"));
+        assert_eq!(out["skip-cert-verify"].as_bool(), Some(false));
+    }
+
+    /// Issue #38: plain ss node must not gain an empty plugin-opts mapping.
+    #[test]
+    fn test_ss_roundtrip_no_empty_plugin_opts() {
+        let input = r#"
+proxies:
+  - {name: hk, type: ss, server: a01.example.com, port: 52011, cipher: 2022-blake3-aes-128-gcm, password: "NWI2YjgyYzU1MzZkYzYzMA==:ZWUyMzc4ODMtZDkxYi00NQ==", udp: true}
+"#;
+        let outputs = roundtrip_to_yaml(input);
+        let out = &outputs[0];
+        assert_eq!(
+            out["password"].as_str(),
+            Some("NWI2YjgyYzU1MzZkYzYzMA==:ZWUyMzc4ODMtZDkxYi00NQ==")
+        );
+        assert!(out.get("plugin-opts").is_none(), "no empty plugin-opts");
+        assert!(out.get("plugin").is_none(), "no empty plugin");
+    }
 }

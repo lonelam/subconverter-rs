@@ -2,6 +2,7 @@
 
 import React, { useState, useCallback, ChangeEvent, FormEvent, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
+import { copyToClipboard } from '@/lib/clipboard';
 import {
     convertSubscription,
     SubconverterFormParams,
@@ -857,7 +858,7 @@ export default function ConvertPage() {
                             <div className="flex justify-between items-center mb-2">
                                 <h4 className="font-medium text-gray-800">{t('subscriptionUrlDisplay')}</h4>
                                 <button
-                                    onClick={() => navigator.clipboard.writeText(shortUrlData && shortUrlCreated ? shortUrlData.short_url : generateApiUrl())}
+                                    onClick={() => copyToClipboard(shortUrlData && shortUrlCreated ? shortUrlData.short_url : generateApiUrl())}
                                     className="text-xs px-2 py-1 bg-gray-200 hover:bg-gray-300 rounded"
                                 >
                                     {commonT('copy')}

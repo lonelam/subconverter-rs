@@ -161,9 +161,13 @@ mod tests {
         let mut filtered = Vec::new();
         let ext = ExtraSettings::default();
 
-        // 测试没有匹配节点时添加 DIRECT
+        // 没有匹配节点时结果为空；由调用方（如 proxy_to_clash）负责
+        // 在空组时补充 DIRECT，与 C++ 版本行为一致
         group_generate("!!GROUP=SG", &nodes, &mut filtered, true, &ext);
+        assert!(filtered.is_empty());
 
+        // 显式 []DIRECT 规则在 add_direct 模式下应被保留
+        group_generate("[]DIRECT", &nodes, &mut filtered, true, &ext);
         assert_eq!(filtered.len(), 1);
         assert_eq!(filtered[0], "DIRECT");
     }

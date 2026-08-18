@@ -1,3 +1,4 @@
+mod anytls;
 mod common;
 mod explode_clash;
 mod http;
@@ -17,6 +18,7 @@ mod vless;
 mod vmess;
 mod wireguard;
 
+pub use anytls::explode_anytls;
 pub use common::{explode, explode_conf_content, explode_sub};
 pub use explode_clash::explode_clash;
 pub use http::explode_http;

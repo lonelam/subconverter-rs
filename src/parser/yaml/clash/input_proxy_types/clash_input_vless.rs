@@ -49,7 +49,7 @@ pub struct ClashInputVLess {
     skip_cert_verify: Option<bool>,
     #[serde(default)]
     fingerprint: Option<String>,
-    #[serde(alias = "servername", default)]
+    #[serde(alias = "servername", alias = "sni", default)]
     servername: Option<String>,
     #[serde(alias = "client-fingerprint", default)]
     client_fingerprint: Option<String>,
@@ -155,8 +155,19 @@ impl ClashInputVLess {
 pub struct RealityOptions {
     #[serde(rename = "public-key")]
     pub public_key: String,
-    #[serde(rename = "short-id")]
+    #[serde(rename = "short-id", default, deserialize_with = "short_id_lenient")]
     pub short_id: String,
+}
+
+/// `short-id` appears in the wild as a string, a bare number, or null.
+fn short_id_lenient<'de, D>(deserializer: D) -> Result<String, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    Ok(
+        crate::utils::deserialize::deserialize_string_or_number(deserializer)?
+            .unwrap_or_default(),
+    )
 }
 
 /// HTTP options for VLESS proxy
@@ -289,5 +300,35 @@ impl Into<Proxy> for ClashInputVLess {
         proxy.port = self.port;
 
         proxy
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Reproduces https://github.com/lonelam/subconverter-rs/issues/41 and
+    /// https://github.com/lonelam/subconverter-rs/issues/42 — reality-opts
+    /// must survive parsing, including unknown sibling keys like `smux`.
+    #[test]
+    fn test_vless_reality_opts_preserved() {
+        let yaml = r#"{"name":"grpc-reality","type":"vless","server":"2.22.22.22","port":13340,"uuid":"56b8aaaa-c339-4502-86ae-9d2a20dcbbbb","network":"grpc","tls":true,"udp":true,"client-fingerprint":"chrome","grpc-opts":{"grpc-service-name":"grpc"},"reality-opts":{"public-key":"bY9DOyBwDrix8ArirlAd","short-id":""},"smux":{"enabled":true,"protocol":"h2mux","padding":true,"max-connections":"8","min-streams":"16","statistic":true,"only-tcp":false},"brutal-opts":{"enabled":false,"up":"1000 Mbps","down":"1000 Mbps"},"servername":"addons.mozilla.org"}"#;
+        let vless: ClashInputVLess = serde_yaml::from_str(yaml).unwrap();
+        let proxy: Proxy = vless.into();
+
+        let combined = proxy.combined_proxy.expect("combined proxy must exist");
+        let vless_proxy = match combined {
+            CombinedProxy::Vless(v) => v,
+            _ => panic!("expected vless combined proxy"),
+        };
+        assert_eq!(
+            vless_proxy.reality_public_key.as_deref(),
+            Some("bY9DOyBwDrix8ArirlAd")
+        );
+        assert_eq!(vless_proxy.reality_short_id.as_deref(), Some(""));
+        assert_eq!(vless_proxy.client_fingerprint.as_deref(), Some("chrome"));
+        assert_eq!(vless_proxy.grpc_service_name.as_deref(), Some("grpc"));
+        assert_eq!(vless_proxy.servername.as_deref(), Some("addons.mozilla.org"));
+        assert!(vless_proxy.tls);
     }
 }

@@ -1,8 +1,6 @@
 use crate::models::Proxy;
 use crate::parser::yaml::clash::clash_proxy_types::ClashProxyYamlInput;
 
-use super::ClashYamlInput;
-
 /// Parse Clash configuration from YAML string
 ///
 /// This function is the Rust equivalent of the C++ `explodeClash` function.
@@ -10,58 +8,40 @@ use super::ClashYamlInput;
 /// 1. Type safety through enum variants in ClashProxyYamlInput
 /// 2. Proper error handling with Result type
 /// 3. Automatic deserialization using serde
-/// 4. Cleaner pattern matching compared to C++ if/else chains
+/// 4. Per-proxy resilience: one malformed node no longer discards the whole
+///    subscription — it is logged and skipped instead.
 pub fn parse_clash_yaml(content: &str) -> Result<Vec<Proxy>, String> {
-    let clash_input: ClashYamlInput = match serde_yaml::from_str(content) {
-        Ok(input) => input,
-        Err(e) => return Err(format!("Failed to parse Clash YAML: {}", e)),
-    };
+    let yaml: serde_yaml::Value = serde_yaml::from_str(content)
+        .map_err(|e| format!("Failed to parse Clash YAML: {}", e))?;
+
+    let proxy_entries = extract_proxy_entries(&yaml)
+        .ok_or_else(|| "No `proxies` section found in Clash YAML".to_string())?;
 
     let mut proxies = Vec::new();
-
-    for proxy in clash_input.extract_proxies() {
-        match proxy {
-            ClashProxyYamlInput::Shadowsocks(ss) => {
-                proxies.push(ss.into());
+    for entry in proxy_entries {
+        match serde_yaml::from_value::<ClashProxyYamlInput>(entry.clone()) {
+            Ok(typed) => {
+                if let Some(proxy) = typed.into_proxy() {
+                    proxies.push(proxy);
+                }
             }
-            ClashProxyYamlInput::ShadowsocksR(ssr) => {
-                proxies.push(ssr.into());
-            }
-            ClashProxyYamlInput::VMess(vmess) => {
-                proxies.push(vmess.into());
-            }
-            ClashProxyYamlInput::Trojan(trojan) => {
-                proxies.push(trojan.into());
-            }
-            ClashProxyYamlInput::Http(http) => {
-                proxies.push(http.into());
-            }
-            ClashProxyYamlInput::Socks5(socks5) => {
-                proxies.push(socks5.into());
-            }
-            ClashProxyYamlInput::Snell(snell) => {
-                proxies.push(snell.into());
-            }
-            ClashProxyYamlInput::WireGuard(wg) => {
-                proxies.push(wg.into());
-            }
-            ClashProxyYamlInput::Hysteria(hysteria) => {
-                proxies.push(hysteria.into());
-            }
-            ClashProxyYamlInput::Hysteria2(hysteria2) => {
-                proxies.push(hysteria2.into());
-            }
-            ClashProxyYamlInput::VLess(vless) => {
-                proxies.push(vless.into());
-            }
-            ClashProxyYamlInput::AnyTls(anytls) => {
-                proxies.push(anytls.into());
-            }
-            ClashProxyYamlInput::Unknown => {
-                // Skip unknown proxy types
+            Err(e) => {
+                log::warn!("Skipping malformed Clash proxy entry: {}", e);
             }
         }
     }
 
     Ok(proxies)
+}
+
+/// Locate the proxies sequence in a parsed Clash YAML document, supporting
+/// both the modern `proxies` key and the legacy `Proxy` key.
+pub fn extract_proxy_entries(yaml: &serde_yaml::Value) -> Option<&Vec<serde_yaml::Value>> {
+    match yaml.get("proxies") {
+        Some(serde_yaml::Value::Sequence(seq)) => Some(seq),
+        _ => match yaml.get("Proxy") {
+            Some(serde_yaml::Value::Sequence(seq)) => Some(seq),
+            _ => None,
+        },
+    }
 }

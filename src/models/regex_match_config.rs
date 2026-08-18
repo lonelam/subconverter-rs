@@ -48,17 +48,14 @@ impl RegexMatchConfig {
     }
 
     pub fn process(&self, remark: &mut String) {
-        let mut matched = false;
-
-        // Use compiled rule for matching if available
-        if let Some(compiled) = &self.compiled_rule {
-            // Use the version designed for simple string matching
-            matched = apply_compiled_rule_to_string(compiled, remark);
+        // Use compiled rule for matching if available, falling back to the
+        // original method if not compiled (shouldn't happen if compile() is
+        // called)
+        let matched = if let Some(compiled) = &self.compiled_rule {
+            apply_compiled_rule_to_string(compiled, remark)
         } else {
-            // Fallback to original method if not compiled (shouldn't happen if compile() is
-            // called)
-            matched = crate::utils::matcher::reg_find(remark, &self._match);
-        }
+            crate::utils::matcher::reg_find(remark, &self._match)
+        };
 
         if matched {
             // Use pre-compiled regex for replacement if available

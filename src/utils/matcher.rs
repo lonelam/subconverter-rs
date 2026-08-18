@@ -389,7 +389,14 @@ pub fn compile_rule(rule: &str) -> CompiledRule {
     } else if let Some(captures) = SECURITY_REGEX.captures(rule) {
         sub_rule_str = captures.get(2).map(|m| m.as_str());
         let target = captures.get(1).map_or("", |m| m.as_str());
-        Regex::new(&format!("(?i){}", target))
+        // The target is a comma-separated list of feature flags
+        // (e.g. "TLS,TLS13"); a node matches when it has ANY of them.
+        let alternatives = target
+            .split(',')
+            .map(|flag| regex::escape(flag.trim()))
+            .collect::<Vec<_>>()
+            .join("|");
+        Regex::new(&format!("(?i)(?:^|,)(?:{})(?:,|$)", alternatives))
             .map(CompiledMatcher::Security)
             .unwrap_or(CompiledMatcher::Invalid)
     } else if let Some(captures) = REMARKS_REGEX.captures(rule) {
@@ -409,9 +416,12 @@ pub fn compile_rule(rule: &str) -> CompiledRule {
         }
     };
 
+    // The capture strips the leading "!!", so restore it before recursing —
+    // otherwise "PORT=80" in "!!GROUP=X!!PORT=80" would be treated as a
+    // plain remark regex instead of a port matcher.
     let sub_rule = sub_rule_str
         .filter(|s| !s.is_empty()) // Only compile non-empty sub-rules
-        .map(|s| Box::new(compile_rule(s)));
+        .map(|s| Box::new(compile_rule(&format!("!!{}", s))));
 
     CompiledRule { matcher, sub_rule }
 }

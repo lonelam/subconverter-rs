@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { ShortUrlData, listShortUrls, deleteShortUrl, createShortUrl, updateShortUrl, moveShortUrl } from "@/lib/api-client";
 import { useRouter } from "next/navigation";
+import { copyToClipboard } from "@/lib/clipboard";
 
 export default function SavedLinks() {
     const [links, setLinks] = useState<ShortUrlData[]>([]);
@@ -325,7 +326,7 @@ export default function SavedLinks() {
                                     </div>
                                     <div className="flex flex-col md:flex-row gap-2">
                                         <button
-                                            onClick={() => navigator.clipboard.writeText(link.short_url)}
+                                            onClick={() => copyToClipboard(link.short_url)}
                                             className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded flex items-center justify-center"
                                         >
                                             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">

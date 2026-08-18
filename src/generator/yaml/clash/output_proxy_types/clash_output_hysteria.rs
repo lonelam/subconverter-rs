@@ -100,15 +100,14 @@ impl From<Proxy> for HysteriaProxy {
 
         hysteria.ports = proxy.ports;
         hysteria.protocol = proxy.protocol;
-        hysteria.obfs_protocol = proxy.obfs.clone();
 
         if proxy.up_speed > 0 {
-            hysteria.up = Some(format!("{}Mbps", proxy.up_speed));
+            hysteria.up = Some(format!("{} Mbps", proxy.up_speed));
             hysteria.up_speed = Some(proxy.up_speed);
         }
 
         if proxy.down_speed > 0 {
-            hysteria.down = Some(format!("{}Mbps", proxy.down_speed));
+            hysteria.down = Some(format!("{} Mbps", proxy.down_speed));
             hysteria.down_speed = Some(proxy.down_speed);
         }
 
@@ -119,7 +118,9 @@ impl From<Proxy> for HysteriaProxy {
         hysteria.fingerprint = proxy.fingerprint;
 
         if !proxy.alpn.is_empty() {
-            hysteria.alpn = Some(proxy.alpn.into_iter().collect());
+            let mut alpn: Vec<String> = proxy.alpn.into_iter().collect();
+            alpn.sort();
+            hysteria.alpn = Some(alpn);
         }
 
         hysteria.ca = proxy.ca;

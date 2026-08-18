@@ -78,14 +78,26 @@ pub fn explode_ss(ss: &str, node: &mut Proxy) -> bool {
             Err(_) => return false,
         };
 
-        // Decode the secret part
+        // Decode the secret part. SIP002 allows two forms:
+        // - base64("method:password") for classic ciphers
+        // - plaintext "method:password", percent-encoded, for AEAD-2022
+        //   ciphers (the base64 decode fails and returns the input unchanged)
         let decoded_secret = crate::utils::base64::url_safe_base64_decode(secret);
-        let method_pass: Vec<&str> = decoded_secret.split(':').collect();
-        if method_pass.len() < 2 {
+        let (parsed_method, parsed_password) = if decoded_secret.contains(':') {
+            let mut parts = decoded_secret.splitn(2, ':');
+            let m = parts.next().unwrap_or_default().to_string();
+            let p = parts.next().unwrap_or_default().to_string();
+            if decoded_secret == secret {
+                // Plaintext form: undo the percent-encoding
+                (url_decode(&m), url_decode(&p))
+            } else {
+                (m, p)
+            }
+        } else {
             return false;
-        }
-        method = method_pass[0].to_string();
-        password = method_pass[1..].join(":"); // In case password contains colons
+        };
+        method = parsed_method;
+        password = parsed_password;
     } else {
         // Legacy format
         let decoded = crate::utils::base64::url_safe_base64_decode(&ss_content);
@@ -150,6 +162,39 @@ pub fn explode_ss(ss: &str, node: &mut Proxy) -> bool {
     );
 
     true
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Reproduces https://github.com/lonelam/subconverter-rs/issues/38 —
+    /// SIP002 links for AEAD-2022 ciphers carry a percent-encoded plaintext
+    /// userinfo which must be URL-decoded, not left as-is.
+    #[test]
+    fn test_explode_ss_2022_plaintext_userinfo() {
+        let link = "ss://2022-blake3-aes-128-gcm:NWI2YjgyYzU1MzZkYzYzMA%3D%3D%3AZWUyMzc4ODMtZDkxYi00NQ%3D%3D@a01.example.com:52011#HK01";
+        let mut node = Proxy::default();
+        assert!(explode_ss(link, &mut node));
+        assert_eq!(node.encrypt_method.as_deref(), Some("2022-blake3-aes-128-gcm"));
+        assert_eq!(
+            node.password.as_deref(),
+            Some("NWI2YjgyYzU1MzZkYzYzMA==:ZWUyMzc4ODMtZDkxYi00NQ==")
+        );
+        assert_eq!(node.hostname, "a01.example.com");
+        assert_eq!(node.port, 52011);
+    }
+
+    /// Classic base64 userinfo must keep working.
+    #[test]
+    fn test_explode_ss_base64_userinfo() {
+        // base64("aes-256-gcm:test1234") = YWVzLTI1Ni1nY206dGVzdDEyMzQ=
+        let link = "ss://YWVzLTI1Ni1nY206dGVzdDEyMzQ=@example.com:8388#node";
+        let mut node = Proxy::default();
+        assert!(explode_ss(link, &mut node));
+        assert_eq!(node.encrypt_method.as_deref(), Some("aes-256-gcm"));
+        assert_eq!(node.password.as_deref(), Some("test1234"));
+    }
 }
 
 /// Parse a SSD (Shadowsocks subscription) link into a vector of Proxy objects

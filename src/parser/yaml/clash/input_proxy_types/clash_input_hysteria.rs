@@ -2,7 +2,9 @@ use serde::Deserialize;
 
 use crate::models::proxy::Proxy;
 use crate::models::proxy::ProxyType;
-use crate::utils::deserialize::deserialize_string_or_number;
+use crate::utils::deserialize::{
+    deserialize_string_or_number, deserialize_string_or_vec, parse_speed_mbps,
+};
 use crate::utils::tribool::OptionSetExt;
 
 /// Represents a Hysteria proxy in Clash configuration
@@ -36,7 +38,7 @@ pub struct ClashInputHysteria {
     sni: Option<String>,
     #[serde(default)]
     fingerprint: Option<String>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_string_or_vec")]
     alpn: Option<Vec<String>>,
     #[serde(default)]
     ca: Option<String>,
@@ -169,17 +171,16 @@ impl Into<Proxy> for ClashInputHysteria {
         proxy.port = self.port;
         proxy.ports = self.ports;
         proxy.protocol = self.protocol;
-        proxy.obfs = self.obfs_protocol;
 
-        // Handle upload/download speed
+        // Handle upload/download speed; values may carry units ("1000 Mbps")
         if let Some(up_value) = self.up {
-            proxy.up_speed = up_value.replace("Mbps", "").parse().unwrap_or(0);
+            proxy.up_speed = parse_speed_mbps(&up_value);
         } else if let Some(up_speed) = self.up_speed {
             proxy.up_speed = up_speed;
         }
 
         if let Some(down_value) = self.down {
-            proxy.down_speed = down_value.replace("Mbps", "").parse().unwrap_or(0);
+            proxy.down_speed = parse_speed_mbps(&down_value);
         } else if let Some(down_speed) = self.down_speed {
             proxy.down_speed = down_speed;
         }
@@ -188,8 +189,8 @@ impl Into<Proxy> for ClashInputHysteria {
         proxy.auth = self.auth;
         proxy.auth_str = self.auth_str;
 
-        // Set obfuscation
-        proxy.obfs = self.obfs;
+        // Set obfuscation (`obfs`, falling back to the legacy `obfs-protocol`)
+        proxy.obfs = self.obfs.or(self.obfs_protocol);
 
         // Set TLS related fields
         proxy.sni = self.sni;
@@ -220,5 +221,35 @@ impl Into<Proxy> for ClashInputHysteria {
         proxy.hop_interval = self.hop_interval.unwrap_or(0);
 
         proxy
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Reproduces https://github.com/lonelam/subconverter-rs/issues/37 —
+    /// `up`/`down` with a "Mbps" suffix and list-valued `alpn` must survive.
+    #[test]
+    fn test_hysteria_speed_with_unit_and_alpn() {
+        let yaml = r#"{name: serves, server: 192.168.1.1, port: 62003, type: hysteria, auth-str: auth, up: 1000 Mbps, down: 1000 Mbps, protocol: none, skip-cert-verify: true, alpn: [h3]}"#;
+        let hysteria: ClashInputHysteria = serde_yaml::from_str(yaml).unwrap();
+        let proxy: Proxy = hysteria.into();
+
+        assert_eq!(proxy.up_speed, 1000);
+        assert_eq!(proxy.down_speed, 1000);
+        assert!(proxy.alpn.contains("h3"));
+        assert_eq!(proxy.auth_str.as_deref(), Some("auth"));
+        assert_eq!(proxy.allow_insecure, Some(true));
+    }
+
+    #[test]
+    fn test_hysteria_alpn_as_string() {
+        let yaml =
+            r#"{name: n, server: s.example.com, port: 443, type: hysteria, alpn: h3, up: 100, down: 100}"#;
+        let hysteria: ClashInputHysteria = serde_yaml::from_str(yaml).unwrap();
+        let proxy: Proxy = hysteria.into();
+        assert!(proxy.alpn.contains("h3"));
+        assert_eq!(proxy.up_speed, 100);
     }
 }

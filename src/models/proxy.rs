@@ -120,6 +120,10 @@ pub struct Proxy {
     pub auth_str: Option<String>,
     pub sni: Option<String>,
     pub fingerprint: Option<String>,
+    /// uTLS client fingerprint (e.g. "chrome"), distinct from the TLS
+    /// certificate `fingerprint` above
+    #[serde(default)]
+    pub client_fingerprint: Option<String>,
     pub ca: Option<String>,
     pub ca_str: Option<String>,
     pub recv_window_conn: u32,
@@ -187,6 +191,7 @@ impl Default for Proxy {
             auth_str: None,
             sni: None,
             fingerprint: None,
+            client_fingerprint: None,
             ca: None,
             ca_str: None,
             recv_window_conn: 0,
@@ -305,3 +310,4 @@ pub const SNELL_DEFAULT_GROUP: &str = "SnellProvider";
 pub const WG_DEFAULT_GROUP: &str = "WireGuardProvider";
 pub const HYSTERIA_DEFAULT_GROUP: &str = "HysteriaProvider";
 pub const HYSTERIA2_DEFAULT_GROUP: &str = "Hysteria2Provider";
+pub const ANYTLS_DEFAULT_GROUP: &str = "AnyTLSProvider";

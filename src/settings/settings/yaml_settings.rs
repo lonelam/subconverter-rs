@@ -293,8 +293,17 @@ pub struct YamlSettings {
 
     #[serde(deserialize_with = "deserialize_template_as_template_settings")]
     pub template: TemplateSettings,
+    #[serde(
+        default,
+        deserialize_with = "crate::utils::deserialize::deserialize_null_default"
+    )]
     pub aliases: Vec<AliasConfig>,
-    #[serde(skip)]
+    /// Cron tasks; an empty `tasks:` key in the YAML is treated as no tasks
+    /// instead of a parse error (issue #15)
+    #[serde(
+        default,
+        deserialize_with = "crate::utils::deserialize::deserialize_null_default"
+    )]
     pub tasks: Vec<TaskConfigInYaml>,
     pub server: ServerSettings,
     pub advanced: AdvancedSettings,

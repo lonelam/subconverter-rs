@@ -54,3 +54,25 @@ pub enum ClashProxyYamlInput {
     #[serde(other)]
     Unknown,
 }
+
+impl ClashProxyYamlInput {
+    /// Convert this typed Clash proxy into the internal [`Proxy`] model.
+    /// Returns `None` for unknown proxy types.
+    pub fn into_proxy(self) -> Option<crate::models::Proxy> {
+        match self {
+            ClashProxyYamlInput::Shadowsocks(ss) => Some(ss.into()),
+            ClashProxyYamlInput::ShadowsocksR(ssr) => Some(ssr.into()),
+            ClashProxyYamlInput::VMess(vmess) => Some(vmess.into()),
+            ClashProxyYamlInput::Trojan(trojan) => Some(trojan.into()),
+            ClashProxyYamlInput::Http(http) => Some(http.into()),
+            ClashProxyYamlInput::Socks5(socks5) => Some(socks5.into()),
+            ClashProxyYamlInput::Snell(snell) => Some(snell.into()),
+            ClashProxyYamlInput::WireGuard(wg) => Some(wg.into()),
+            ClashProxyYamlInput::Hysteria(hysteria) => Some(hysteria.into()),
+            ClashProxyYamlInput::Hysteria2(hysteria2) => Some(hysteria2.into()),
+            ClashProxyYamlInput::VLess(vless) => Some(vless.into()),
+            ClashProxyYamlInput::AnyTls(anytls) => Some(anytls.into()),
+            ClashProxyYamlInput::Unknown => None,
+        }
+    }
+}

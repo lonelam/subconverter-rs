@@ -247,7 +247,14 @@ lazy_static! {
 /// A new string with emoji characters removed.
 pub fn remove_emoji(s: &str) -> String {
     // Replace all matches with an empty string.
-    EMOJI_REGEX.replace_all(s, "").into_owned()
+    let result = EMOJI_REGEX.replace_all(s, "");
+    // Match the C++ behavior: if stripping emoji would leave nothing,
+    // keep the original so the node still has a usable name.
+    if result.trim().is_empty() {
+        s.to_string()
+    } else {
+        result.into_owned()
+    }
 }
 
 /// Calculate MD5 hash for a string

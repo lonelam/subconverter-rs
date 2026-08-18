@@ -17,7 +17,7 @@ pub struct ShadowsocksProxy {
     #[serde(skip_serializing_if = "is_empty_option_string")]
     pub plugin: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub plugin_opts: Option<HashMap<String, String>>,
+    pub plugin_opts: Option<HashMap<String, serde_yaml::Value>>,
     // Additional fields from the C++ implementation
     #[serde(skip_serializing_if = "Option::is_none")]
     pub udp_over_tcp: Option<bool>,
@@ -70,20 +70,59 @@ impl From<Proxy> for ShadowsocksProxy {
 
         ss.cipher = proxy.encrypt_method;
         ss.password = proxy.password;
-        ss.plugin = proxy.plugin;
 
-        if let Some(plugin_opts) = proxy.plugin_option {
-            let mut opts = HashMap::new();
+        // Normalize plugin naming for Clash: it expects `obfs`, not
+        // `obfs-local`/`simple-obfs`
+        let plugin = proxy.plugin.filter(|p| !p.is_empty()).map(|p| {
+            if p == "obfs-local" || p == "simple-obfs" {
+                "obfs".to_string()
+            } else {
+                p
+            }
+        });
+
+        // Only emit plugin-opts when a plugin is actually configured;
+        // an empty `plugin-opts: {}` breaks some Clash clients.
+        if let Some(plugin_opts) = proxy.plugin_option.filter(|_| plugin.is_some()) {
+            let mut opts: HashMap<String, serde_yaml::Value> = HashMap::new();
 
             for opt in plugin_opts.split(';') {
-                let parts: Vec<&str> = opt.split('=').collect();
-                if parts.len() == 2 {
-                    opts.insert(parts[0].to_string(), parts[1].to_string());
+                let opt = opt.trim();
+                if opt.is_empty() {
+                    continue;
                 }
+                let mut parts = opt.splitn(2, '=');
+                let key = parts.next().unwrap_or_default().trim();
+                if key.is_empty() {
+                    continue;
+                }
+                // Strip the "obfs" prefix used by the ss plugin option syntax
+                let key = match key {
+                    "obfs" => "mode",
+                    "obfs-host" => "host",
+                    other => other,
+                };
+                let value = match parts.next() {
+                    // Bare flags such as `tls` mean "enabled"
+                    None => serde_yaml::Value::Bool(true),
+                    Some(v) => match v.trim() {
+                        "true" => serde_yaml::Value::Bool(true),
+                        "false" => serde_yaml::Value::Bool(false),
+                        // Clash expects `mux` to be a boolean; the ss plugin
+                        // option syntax uses a connection count
+                        v if key == "mux" => serde_yaml::Value::Bool(v != "0"),
+                        v => serde_yaml::Value::String(v.to_string()),
+                    },
+                };
+                opts.insert(key.to_string(), value);
             }
 
-            ss.plugin_opts = Some(opts);
+            if !opts.is_empty() {
+                ss.plugin_opts = Some(opts);
+            }
         }
+
+        ss.plugin = plugin;
 
         // Map combined_proxy fields if available
         if let Some(ref combined) = proxy.combined_proxy {

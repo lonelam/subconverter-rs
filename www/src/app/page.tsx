@@ -6,6 +6,7 @@ import { useState, FormEvent, useCallback, useEffect } from "react";
 import { useTranslations } from 'next-intl';
 import { convertSubscription, SubResponseData, ErrorData, createShortUrl, ShortUrlData, getAvailableDownloads, detectUserOS, AppDownloadInfo } from '@/lib/api-client';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
+import { copyToClipboard } from '@/lib/clipboard';
 
 // Define config presets for easy maintenance
 const CONFIG_PRESETS = [
@@ -325,7 +326,7 @@ export default function Home() {
                 <div className="flex justify-between items-center mb-2">
                   <h4 className="font-medium">{t('subscriptionUrlDisplay')}</h4>
                   <button
-                    onClick={() => navigator.clipboard.writeText(shortUrlData && shortUrlCreated ? shortUrlData.short_url : generateApiUrl())}
+                    onClick={() => copyToClipboard(shortUrlData && shortUrlCreated ? shortUrlData.short_url : generateApiUrl())}
                     className="text-xs px-2 py-1 bg-gray-600 hover:bg-gray-700 text-white rounded"
                   >
                     {t('copy')}

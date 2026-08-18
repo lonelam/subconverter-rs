@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import CodeEditor from "@/components/CodeEditor";
+import { copyToClipboard } from "@/lib/clipboard";
 
 export default function ConfigEditor() {
     const [activeTab, setActiveTab] = useState("general");
@@ -74,7 +75,7 @@ overwrite_original_rules=true
                                     className="w-full p-2 bg-gray-700 rounded-l"
                                 />
                                 <button
-                                    onClick={() => navigator.clipboard.writeText(generatedLink)}
+                                    onClick={() => copyToClipboard(generatedLink)}
                                     className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-r"
                                 >
                                     Copy
