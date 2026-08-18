@@ -61,6 +61,7 @@ pub mod proxy_node;
 pub mod regex_match_config;
 pub mod ruleset;
 pub mod subconverter_target;
+pub mod target_profile;
 
 pub use extra_settings::ExtraSettings;
 pub use proxy_group_config::{
@@ -68,6 +69,7 @@ pub use proxy_group_config::{
 };
 pub use regex_match_config::{RegexMatchConfig, RegexMatchConfigs};
 pub use subconverter_target::SubconverterTarget;
+pub use target_profile::{ClashCapabilities, ClashFlavor};
 
 pub use proxy::{Proxy, ProxyType};
 pub use ruleset::{RulesetConfig, RulesetContent, RulesetType};

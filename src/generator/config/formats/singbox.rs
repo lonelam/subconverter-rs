@@ -623,6 +623,120 @@ pub fn proxy_to_singbox(
 
                 obj
             }
+            ProxyType::Vless => {
+                let default_vless = Default::default();
+                let vless = node.as_vless().unwrap_or(&default_vless);
+                let mut obj = Map::new();
+                add_singbox_common_members(&mut obj, node, "vless");
+
+                obj.insert("uuid".to_string(), JsonValue::String(vless.uuid.clone()));
+
+                if let Some(flow) = vless.flow.clone().filter(|f| !f.is_empty()) {
+                    obj.insert("flow".to_string(), JsonValue::String(flow));
+                }
+
+                if let Some(packet_encoding) = vless
+                    .packet_encoding
+                    .clone()
+                    .filter(|p| !p.is_empty() && p != "none")
+                {
+                    obj.insert(
+                        "packet_encoding".to_string(),
+                        JsonValue::String(packet_encoding),
+                    );
+                }
+
+                // Transport settings
+                let mut transport = Map::new();
+                match vless.network.as_deref() {
+                    Some("ws") => {
+                        transport
+                            .insert("type".to_string(), JsonValue::String("ws".to_string()));
+                        if let Some(path) = vless.ws_path.clone().filter(|p| !p.is_empty()) {
+                            transport.insert("path".to_string(), JsonValue::String(path));
+                        }
+                        if let Some(headers) = &vless.ws_headers {
+                            if !headers.is_empty() {
+                                let mut header_map = Map::new();
+                                let mut ordered: Vec<_> = headers.iter().collect();
+                                ordered.sort();
+                                for (key, value) in ordered {
+                                    header_map.insert(
+                                        key.clone(),
+                                        JsonValue::String(value.clone()),
+                                    );
+                                }
+                                transport.insert(
+                                    "headers".to_string(),
+                                    JsonValue::Object(header_map),
+                                );
+                            }
+                        }
+                    }
+                    Some("grpc") => {
+                        transport
+                            .insert("type".to_string(), JsonValue::String("grpc".to_string()));
+                        if let Some(service_name) =
+                            vless.grpc_service_name.clone().filter(|s| !s.is_empty())
+                        {
+                            transport.insert(
+                                "service_name".to_string(),
+                                JsonValue::String(service_name),
+                            );
+                        }
+                    }
+                    Some("http") | Some("h2") => {
+                        transport
+                            .insert("type".to_string(), JsonValue::String("http".to_string()));
+                        if let Some(path) = vless
+                            .http_path
+                            .clone()
+                            .or_else(|| vless.h2_path.clone())
+                            .filter(|p| !p.is_empty())
+                        {
+                            transport.insert("path".to_string(), JsonValue::String(path));
+                        }
+                    }
+                    _ => {}
+                }
+                if !transport.is_empty() {
+                    obj.insert("transport".to_string(), JsonValue::Object(transport));
+                }
+
+                obj
+            }
+            ProxyType::AnyTls => {
+                let default_anytls = Default::default();
+                let anytls = node.as_anytls().unwrap_or(&default_anytls);
+                let mut obj = Map::new();
+                add_singbox_common_members(&mut obj, node, "anytls");
+
+                obj.insert(
+                    "password".to_string(),
+                    JsonValue::String(anytls.password.clone()),
+                );
+
+                if let Some(interval) = anytls.idle_session_check_interval {
+                    obj.insert(
+                        "idle_session_check_interval".to_string(),
+                        JsonValue::String(format!("{}s", interval)),
+                    );
+                }
+                if let Some(timeout) = anytls.idle_session_timeout {
+                    obj.insert(
+                        "idle_session_timeout".to_string(),
+                        JsonValue::String(format!("{}s", timeout)),
+                    );
+                }
+                if let Some(min_idle) = anytls.min_idle_session {
+                    obj.insert(
+                        "min_idle_session".to_string(),
+                        JsonValue::Number(min_idle.into()),
+                    );
+                }
+
+                obj
+            }
             _ => continue, // Skip unsupported types
         };
 
@@ -648,6 +762,41 @@ pub fn proxy_to_singbox(
             // Add insecure option
             if let Some(allow_insecure) = scv {
                 tls.insert("insecure".to_string(), JsonValue::Bool(allow_insecure));
+            }
+
+            // ALPN protocols
+            if !node.alpn.is_empty() {
+                let mut alpn: Vec<String> = node.alpn.iter().cloned().collect();
+                alpn.sort();
+                tls.insert(
+                    "alpn".to_string(),
+                    JsonValue::Array(alpn.into_iter().map(JsonValue::String).collect()),
+                );
+            }
+
+            // uTLS client fingerprint
+            if let Some(fingerprint) = node.client_fingerprint.clone().filter(|f| !f.is_empty()) {
+                let mut utls = Map::new();
+                utls.insert("enabled".to_string(), JsonValue::Bool(true));
+                utls.insert("fingerprint".to_string(), JsonValue::String(fingerprint));
+                tls.insert("utls".to_string(), JsonValue::Object(utls));
+            }
+
+            // REALITY settings for VLESS
+            if let Some(vless) = node.as_vless() {
+                if let Some(public_key) = &vless.reality_public_key {
+                    let mut reality = Map::new();
+                    reality.insert("enabled".to_string(), JsonValue::Bool(true));
+                    reality.insert(
+                        "public_key".to_string(),
+                        JsonValue::String(public_key.clone()),
+                    );
+                    reality.insert(
+                        "short_id".to_string(),
+                        JsonValue::String(vless.reality_short_id.clone().unwrap_or_default()),
+                    );
+                    tls.insert("reality".to_string(), JsonValue::Object(reality));
+                }
             }
 
             proxy_obj.insert("tls".to_string(), JsonValue::Object(tls));

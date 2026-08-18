@@ -46,11 +46,43 @@
       "server_port": 443,
       "tag": "trojan-node",
       "tls": {
+        "alpn": [
+          "h2"
+        ],
         "enabled": true,
         "insecure": false,
-        "server_name": "tsni.example.com"
+        "server_name": "tsni.example.com",
+        "utls": {
+          "enabled": true,
+          "fingerprint": "chrome"
+        }
       },
       "type": "trojan"
+    },
+    {
+      "flow": "xtls-rprx-vision",
+      "server": "vless.example.com",
+      "server_port": 8443,
+      "tag": "vless-reality",
+      "tls": {
+        "enabled": true,
+        "reality": {
+          "enabled": true,
+          "public_key": "bY9DOyBwDrix8ArirlAd",
+          "short_id": "0123"
+        },
+        "server_name": "addons.mozilla.org",
+        "utls": {
+          "enabled": true,
+          "fingerprint": "chrome"
+        }
+      },
+      "transport": {
+        "service_name": "grpc",
+        "type": "grpc"
+      },
+      "type": "vless",
+      "uuid": "56b8aaaa-c339-4502-86ae-9d2a20dcbbbb"
     },
     {
       "auth": "aHlhdXRo",
@@ -118,6 +150,21 @@
       "private_key": "cHJpdmF0ZWtleQ==",
       "tag": "wg-node",
       "type": "wireguard"
+    },
+    {
+      "password": "anytlspw",
+      "server": "anytls.example.com",
+      "server_port": 8443,
+      "tag": "anytls-node",
+      "tls": {
+        "enabled": true,
+        "server_name": "asni.example.com",
+        "utls": {
+          "enabled": true,
+          "fingerprint": "chrome"
+        }
+      },
+      "type": "anytls"
     }
   ]
 }

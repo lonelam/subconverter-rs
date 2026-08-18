@@ -28,6 +28,8 @@ pub struct ExtraSettings {
     pub filter_deprecated: bool,
     /// Whether to use new field names in Clash
     pub clash_new_field_name: bool,
+    /// Which Clash flavor the output targets
+    pub clash_flavor: crate::models::ClashFlavor,
     /// Whether to use scripts in Clash
     pub clash_script: bool,
     /// Path to Surge SSR binary
@@ -109,6 +111,7 @@ impl Default for ExtraSettings {
             sort_flag: false,
             filter_deprecated: false,
             clash_new_field_name: true,
+            clash_flavor: Default::default(),
             clash_script: false,
             surge_ssr_path: global.surge_ssr_path.clone(),
             managed_config_prefix: String::new(),

@@ -112,6 +112,8 @@ pub struct SubconverterQuery {
         deserialize_with = "bool_deserializer::deserialize_option_bool"
     )]
     pub new_name: Option<bool>,
+    /// Clash flavor to target: mihomo (default) / premium / stash
+    pub flavor: Option<String>,
     /// URLs to convert (pipe separated)
     pub url: Option<String>,
     /// Custom group name
@@ -468,6 +470,13 @@ pub async fn sub_process(
 
     builder.filter_deprecated(query.fdn.unwrap_or(global.filter_deprecated));
     builder.clash_new_field_name(query.new_name.unwrap_or(global.clash_use_new_field));
+    builder.clash_flavor(
+        query
+            .flavor
+            .as_deref()
+            .map(crate::models::ClashFlavor::from_str)
+            .unwrap_or_default(),
+    );
     builder.clash_script(query.script.unwrap_or_default());
     builder.clash_classical_ruleset(query.classic.unwrap_or_default());
     let nodelist = query.list.unwrap_or_default();

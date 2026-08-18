@@ -327,6 +327,12 @@ impl SubconverterConfigBuilder {
         self
     }
 
+    /// Set which Clash flavor (mihomo/premium/stash) the output targets
+    pub fn clash_flavor(&mut self, flavor: crate::models::ClashFlavor) -> &mut Self {
+        self.config.extra.clash_flavor = flavor;
+        self
+    }
+
     /// Set whether to enable Clash script
     pub fn clash_script(&mut self, enable: bool) -> &mut Self {
         self.config.extra.clash_script = enable;

@@ -197,6 +197,9 @@ pub fn proxy_to_clash_yaml(
     let _group_block = ext.clash_proxy_groups_style == "block";
     let _group_compact = ext.clash_proxy_groups_style == "compact";
 
+    // Capability matrix of the targeted Clash flavor
+    let capabilities = ext.clash_flavor.capabilities();
+
     // Create JSON structure for the proxies
     let mut proxies_json = Vec::new();
     let mut remarks_list = Vec::new();
@@ -243,12 +246,24 @@ pub fn proxy_to_clash_yaml(
             // Skip unsupported proxy types
             ProxyType::Unknown | ProxyType::HTTPS => true,
 
+            // Skip protocols the targeted Clash flavor cannot load
+            proxy_type if !capabilities.supports(proxy_type) => true,
+
             // Process all other types
             _ => false,
         };
 
         if should_skip {
             continue;
+        }
+
+        // A REALITY node is unusable on a client without REALITY support
+        if !capabilities.reality {
+            if let Some(vless) = node.as_vless() {
+                if vless.reality_public_key.is_some() {
+                    continue;
+                }
+            }
         }
 
         // 创建代理副本，并应用所有必要的属性设置
@@ -259,7 +274,13 @@ pub fn proxy_to_clash_yaml(
         );
 
         // 使用 From trait 自动转换为 ClashProxyOutput
-        let clash_proxy = ClashProxyOutput::from(proxy_copy);
+        let mut clash_proxy = ClashProxyOutput::from(proxy_copy);
+        if clash_proxy.is_unknown() {
+            continue;
+        }
+
+        // Trim fields the targeted flavor does not understand
+        apply_clash_capabilities(&mut clash_proxy, capabilities);
 
         // 添加到代理列表
         proxies_json.push(clash_proxy);
@@ -364,5 +385,94 @@ pub fn proxy_to_clash_yaml(
                 );
             }
         }
+    }
+}
+
+/// Remove fields the targeted Clash flavor does not understand so the
+/// emitted config loads cleanly on that client.
+fn apply_clash_capabilities(
+    proxy: &mut ClashProxyOutput,
+    capabilities: &crate::models::ClashCapabilities,
+) {
+    if !capabilities.client_fingerprint {
+        match proxy {
+            ClashProxyOutput::Shadowsocks(inner) => inner.common.client_fingerprint = None,
+            ClashProxyOutput::ShadowsocksR(inner) => inner.common.client_fingerprint = None,
+            ClashProxyOutput::VMess(inner) => inner.common.client_fingerprint = None,
+            ClashProxyOutput::Trojan(inner) => inner.common.client_fingerprint = None,
+            ClashProxyOutput::VLess(inner) => {
+                inner.common.client_fingerprint = None;
+                inner.client_fingerprint = None;
+            }
+            ClashProxyOutput::AnyTls(inner) => {
+                inner.common.client_fingerprint = None;
+                inner.client_fingerprint = None;
+            }
+            _ => {}
+        }
+    }
+
+    if !capabilities.udp_over_tcp {
+        if let ClashProxyOutput::Shadowsocks(inner) = proxy {
+            inner.udp_over_tcp = None;
+            inner.udp_over_tcp_version = None;
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::models::ClashFlavor;
+    use crate::parser::explodes::explode_clash;
+
+    const FLAVOR_FIXTURE: &str = r#"
+proxies:
+  - {name: ss-node, type: ss, server: s.example.com, port: 8388, cipher: aes-256-gcm, password: pw}
+  - {name: vless-node, type: vless, server: s.example.com, port: 443, uuid: u, network: grpc, tls: true, client-fingerprint: chrome, servername: sni.example.com, reality-opts: {public-key: pk, short-id: "01"}}
+  - {name: hy2-node, type: hysteria2, server: s.example.com, port: 443, password: pw}
+  - {name: trojan-node, type: trojan, server: s.example.com, port: 443, password: pw, client-fingerprint: chrome}
+"#;
+
+    fn render(flavor: ClashFlavor) -> String {
+        let mut nodes = Vec::new();
+        assert!(explode_clash(FLAVOR_FIXTURE, &mut nodes));
+        let mut ext = ExtraSettings::default();
+        ext.nodelist = true;
+        ext.enable_rule_generator = false;
+        ext.clash_flavor = flavor;
+        proxy_to_clash(&mut nodes, "", &mut Vec::new(), &Vec::new(), false, &mut ext)
+    }
+
+    /// mihomo (default) keeps everything, including REALITY and uTLS.
+    #[test]
+    fn test_mihomo_keeps_all() {
+        let output = render(ClashFlavor::Mihomo);
+        assert!(output.contains("vless-node"));
+        assert!(output.contains("hy2-node"));
+        assert!(output.contains("reality-opts"));
+        assert!(output.contains("client-fingerprint"));
+    }
+
+    /// Clash Premium cannot load vless/hysteria2 nodes or uTLS fields.
+    #[test]
+    fn test_premium_drops_unsupported() {
+        let output = render(ClashFlavor::Premium);
+        assert!(output.contains("ss-node"));
+        assert!(output.contains("trojan-node"));
+        assert!(!output.contains("vless-node"));
+        assert!(!output.contains("hy2-node"));
+        assert!(!output.contains("client-fingerprint"));
+        assert!(!output.contains("reality-opts"));
+    }
+
+    /// Stash keeps vless/reality and hysteria2 but has no uTLS support.
+    #[test]
+    fn test_stash_keeps_reality_strips_utls() {
+        let output = render(ClashFlavor::Stash);
+        assert!(output.contains("vless-node"));
+        assert!(output.contains("hy2-node"));
+        assert!(output.contains("reality-opts"));
+        assert!(!output.contains("client-fingerprint"));
     }
 }
