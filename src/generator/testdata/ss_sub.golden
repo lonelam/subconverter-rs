@@ -1,0 +1,11 @@
+[
+  {
+    "method": "aes-256-gcm",
+    "password": "pass:word=",
+    "plugin": "",
+    "plugin_opts": "",
+    "remarks": "ss-plain",
+    "server": "ss.example.com",
+    "server_port": 8388
+  }
+]

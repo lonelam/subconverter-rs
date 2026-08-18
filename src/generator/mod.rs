@@ -1,5 +1,7 @@
 pub mod config;
 pub mod exports;
+#[cfg(test)]
+mod golden_tests;
 pub mod ruleconvert;
 pub mod yaml;
 

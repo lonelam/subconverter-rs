@@ -1,0 +1,122 @@
+{
+  "outbounds": [
+    {
+      "method": "aes-256-gcm",
+      "password": "pass:word=",
+      "server": "ss.example.com",
+      "server_port": 8388,
+      "tag": "ss-plain",
+      "type": "shadowsocks"
+    },
+    {
+      "method": "aes-128-cfb",
+      "obfs": "http_simple",
+      "obfs_param": "obfs.example.com",
+      "password": "ssrpass",
+      "protocol": "auth_aes128_md5",
+      "protocol_param": "1234:abc",
+      "server": "ssr.example.com",
+      "server_port": 8389,
+      "tag": "ssr-node",
+      "type": "shadowsocksr"
+    },
+    {
+      "alter_id": 0,
+      "security": "auto",
+      "server": "vmess.example.com",
+      "server_port": 443,
+      "tag": "vmess-ws",
+      "tls": {
+        "enabled": true,
+        "server_name": "sni.example.com"
+      },
+      "transport": {
+        "headers": {
+          "Host": "host.example.com"
+        },
+        "path": "/ws",
+        "type": "ws"
+      },
+      "type": "vmess",
+      "uuid": "b445361a-abcf-4a4a-a97a-0bf4136d6ddc"
+    },
+    {
+      "password": "trojanpw",
+      "server": "trojan.example.com",
+      "server_port": 443,
+      "tag": "trojan-node",
+      "tls": {
+        "enabled": true,
+        "insecure": false
+      },
+      "type": "trojan"
+    },
+    {
+      "auth": "aHlhdXRo",
+      "auth_str": "hyauth",
+      "down_mbps": 1000,
+      "server": "hy1.example.com",
+      "server_port": 62003,
+      "tag": "hysteria-node",
+      "tls": {
+        "alpn": [
+          "h3"
+        ],
+        "enabled": true,
+        "insecure": true
+      },
+      "type": "hysteria",
+      "up_mbps": 1000
+    },
+    {
+      "obfs": {
+        "password": "obfspw",
+        "type": "salamander"
+      },
+      "password": "hy2pass",
+      "server": "hy2.example.com",
+      "server_port": 443,
+      "tag": "hysteria2-node",
+      "tls": {
+        "alpn": [
+          "h3"
+        ],
+        "enabled": true
+      },
+      "type": "hysteria2"
+    },
+    {
+      "password": "httppass",
+      "server": "http.example.com",
+      "server_port": 8080,
+      "tag": "http-node",
+      "type": "http",
+      "username": "httpuser"
+    },
+    {
+      "password": "sockpass",
+      "server": "socks.example.com",
+      "server_port": 1080,
+      "tag": "socks-node",
+      "type": "socks",
+      "username": "sockuser",
+      "version": "5"
+    },
+    {
+      "local_address": [
+        "10.0.0.2"
+      ],
+      "mtu": 1420,
+      "peers": [
+        {
+          "public_key": "cHVibGlja2V5",
+          "server": "wg.example.com",
+          "server_port": 51820
+        }
+      ],
+      "private_key": "cHJpdmF0ZWtleQ==",
+      "tag": "wg-node",
+      "type": "wireguard"
+    }
+  ]
+}

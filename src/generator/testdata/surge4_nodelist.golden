@@ -1,0 +1,8 @@
+ss-plain = ss, ss.example.com, 8388, encrypt-method=aes-256-gcm, password=pass:word=, udp-relay=true
+vmess-ws = vmess, vmess.example.com, 443, username=b445361a-abcf-4a4a-a97a-0bf4136d6ddc, tls=true, vmess-aead=true, ws=true, ws-path=/ws, sni=host.example.com, ws-headers=Host:host.example.com, udp-relay=true
+trojan-node = trojan, trojan.example.com, 443, password=trojanpw, skip-cert-verify=false, udp-relay=true
+hysteria2-node = hysteria, hy2.example.com, 443, password=hy2pass,sni=h2sni.example.com
+snell-node = snell, snell.example.com, 44046, psk=snellpsk, version=3
+http-node = http, http.example.com, 8080, username=httpuser, password=httppass, tls=false
+socks-node = socks5, socks.example.com, 1080, username=sockuser, password=sockpass, udp-relay=true
+wg-node = wireguard, section-name=447072d89d8de6c6, udp-relay=true

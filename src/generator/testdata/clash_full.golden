@@ -1,0 +1,125 @@
+mixed-port: 7890
+mode: rule
+proxies:
+- type: ss
+  name: ss-plain
+  server: ss.example.com
+  port: 8388
+  udp: true
+  cipher: aes-256-gcm
+  password: pass:word=
+- type: ssr
+  name: ssr-node
+  server: ssr.example.com
+  port: 8389
+  cipher: aes-128-cfb
+  password: ssrpass
+  protocol: auth_aes128_md5
+  protocol-param: 1234:abc
+  obfs: http_simple
+  obfs-param: obfs.example.com
+- type: vmess
+  name: vmess-ws
+  server: vmess.example.com
+  port: 443
+  udp: true
+  tls: true
+  uuid: b445361a-abcf-4a4a-a97a-0bf4136d6ddc
+  alterId: 0
+  cipher: auto
+  network: ws
+  servername: sni.example.com
+  ws-opts:
+    path: /ws
+    headers:
+      Host: host.example.com
+- type: trojan
+  name: trojan-node
+  server: trojan.example.com
+  port: 443
+  udp: true
+  skip-cert-verify: false
+  client-fingerprint: chrome
+  sni: tsni.example.com
+  password: trojanpw
+  alpn:
+  - h2
+- type: vless
+  name: vless-reality
+  server: vless.example.com
+  port: 8443
+  udp: true
+  uuid: 56b8aaaa-c339-4502-86ae-9d2a20dcbbbb
+  flow: xtls-rprx-vision
+  tls: true
+  network: grpc
+  reality-opts:
+    public-key: bY9DOyBwDrix8ArirlAd
+    short-id: '0123'
+  grpc-opts:
+    grpc-service-name: grpc
+  servername: addons.mozilla.org
+  client-fingerprint: chrome
+- type: hysteria
+  name: hysteria-node
+  server: hy1.example.com
+  port: 62003
+  skip-cert-verify: true
+  sni: hsni.example.com
+  protocol: udp
+  up: 1000 Mbps
+  up-speed: 1000
+  down: 1000 Mbps
+  down-speed: 1000
+  auth-str: hyauth
+  alpn:
+  - h3
+- type: hysteria2
+  name: hysteria2-node
+  server: hy2.example.com
+  port: 443
+  sni: h2sni.example.com
+  password: hy2pass
+  obfs: salamander
+  obfs-password: obfspw
+  alpn:
+  - h3
+- type: snell
+  name: snell-node
+  server: snell.example.com
+  port: 44046
+  psk: snellpsk
+  version: 3
+- type: http
+  name: http-node
+  server: http.example.com
+  port: 8080
+  tls: false
+  username: httpuser
+  password: httppass
+- type: socks5
+  name: socks-node
+  server: socks.example.com
+  port: 1080
+  udp: true
+  username: sockuser
+  password: sockpass
+- type: wireguard
+  name: wg-node
+  server: wg.example.com
+  port: 51820
+  udp: true
+  private-key: cHJpdmF0ZWtleQ==
+  public-key: cHVibGlja2V5
+  ip: 10.0.0.2
+  dns:
+  - 1.1.1.1
+  mtu: 1420
+- type: anytls
+  name: anytls-node
+  server: anytls.example.com
+  port: 8443
+  udp: true
+  password: anytlspw
+  sni: asni.example.com
+  client-fingerprint: chrome
