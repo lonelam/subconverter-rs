@@ -22,8 +22,8 @@
 | `subconverter-linux-armv7-*.tar.gz` / `-x86` | 树莓派等 ARMv7 / 32 位 x86 |
 | `subconverter-macos-aarch64-*.tar.gz` | macOS Apple Silicon |
 | `subconverter-macos-x86_64-*.tar.gz` | macOS Intel |
-
-Windows 暂无预编译包，请用源码构建、WSL 或 Docker。
+| `subconverter-windows-amd64-*` | Windows x86_64 |
+| `subconverter-windows-x86-*` | Windows 32 位 |
 
 解压后运行：
 
