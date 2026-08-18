@@ -131,6 +131,10 @@ The binary will be available at `target/release/subconverter-rs`.
 
 ---
 
+## 📚 Documentation
+
+Full usage documentation lives in the in-repo wiki: **[wiki/Home.md](wiki/Home.md)** — getting started (binary/Docker/source), the complete `/sub` parameter reference, protocol/target support matrices, advanced usage (external configs, node filtering syntax) and library/WASM integration.
+
 ## 🔰 Basic Usage
 
 ### API Endpoint
