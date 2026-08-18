@@ -204,12 +204,12 @@ mod tests {
         assert_eq!(node.proxy_type, ProxyType::ShadowsocksR);
         assert_eq!(node.hostname, "example.com");
         assert_eq!(node.port, 8388);
-        assert_eq!(node.protocol.as_deref().unwrap_or(""), "auth_aes128_md5");
-        assert_eq!(node.encrypt_method.as_deref().unwrap_or(""), "aes-256-cfb");
-        assert_eq!(node.obfs.as_deref().unwrap_or(""), "tls1.2_ticket_auth");
-        assert_eq!(node.password.as_deref().unwrap_or(""), "test");
-        assert_eq!(node.obfs_param.as_deref().unwrap_or(""), "test");
-        assert_eq!(node.protocol_param.as_deref().unwrap_or(""), "test");
+        assert_eq!(node.protocol().unwrap_or(""), "auth_aes128_md5");
+        assert_eq!(node.encrypt_method().unwrap_or(""), "aes-256-cfb");
+        assert_eq!(node.obfs().unwrap_or(""), "tls1.2_ticket_auth");
+        assert_eq!(node.password().unwrap_or(""), "test");
+        assert_eq!(node.obfs_param().unwrap_or(""), "test");
+        assert_eq!(node.protocol_param().unwrap_or(""), "test");
         assert_eq!(node.remark, "Test SSR");
         assert_eq!(node.group, "Test SSR");
     }
@@ -313,18 +313,18 @@ mod tests {
         assert_eq!(nodes[0].hostname, "example1.com");
         assert_eq!(nodes[0].port, 8388);
         assert_eq!(
-            nodes[0].protocol.as_deref().unwrap_or(""),
+            nodes[0].protocol().unwrap_or(""),
             "auth_aes128_md5"
         );
         assert_eq!(
-            nodes[0].encrypt_method.as_deref().unwrap_or(""),
+            nodes[0].encrypt_method().unwrap_or(""),
             "aes-256-cfb"
         );
-        assert_eq!(nodes[0].obfs.as_deref().unwrap_or(""), "tls1.2_ticket_auth");
-        assert_eq!(nodes[0].password.as_deref().unwrap_or(""), "password1");
-        assert_eq!(nodes[0].obfs_param.as_deref().unwrap_or(""), "obfs.param1");
+        assert_eq!(nodes[0].obfs().unwrap_or(""), "tls1.2_ticket_auth");
+        assert_eq!(nodes[0].password().unwrap_or(""), "password1");
+        assert_eq!(nodes[0].obfs_param().unwrap_or(""), "obfs.param1");
         assert_eq!(
-            nodes[0].protocol_param.as_deref().unwrap_or(""),
+            nodes[0].protocol_param().unwrap_or(""),
             "proto.param1"
         );
         assert_eq!(nodes[0].remark, "Server 1");
@@ -334,13 +334,13 @@ mod tests {
         assert_eq!(nodes[1].proxy_type, ProxyType::ShadowsocksR);
         assert_eq!(nodes[1].hostname, "example2.com");
         assert_eq!(nodes[1].port, 8389);
-        assert_eq!(nodes[1].protocol.as_deref().unwrap_or(""), "auth_chain_a");
-        assert_eq!(nodes[1].encrypt_method.as_deref().unwrap_or(""), "chacha20");
-        assert_eq!(nodes[1].obfs.as_deref().unwrap_or(""), "http_simple");
-        assert_eq!(nodes[1].password.as_deref().unwrap_or(""), "password2");
-        assert_eq!(nodes[1].obfs_param.as_deref().unwrap_or(""), "obfs.param2");
+        assert_eq!(nodes[1].protocol().unwrap_or(""), "auth_chain_a");
+        assert_eq!(nodes[1].encrypt_method().unwrap_or(""), "chacha20");
+        assert_eq!(nodes[1].obfs().unwrap_or(""), "http_simple");
+        assert_eq!(nodes[1].password().unwrap_or(""), "password2");
+        assert_eq!(nodes[1].obfs_param().unwrap_or(""), "obfs.param2");
         assert_eq!(
-            nodes[1].protocol_param.as_deref().unwrap_or(""),
+            nodes[1].protocol_param().unwrap_or(""),
             "proto.param2"
         );
         assert_eq!(nodes[1].remark, "Server 2");
@@ -394,12 +394,12 @@ mod tests {
         assert_eq!(nodes[0].proxy_type, ProxyType::ShadowsocksR);
         assert_eq!(nodes[0].hostname, "example.com");
         assert_eq!(nodes[0].port, 8388);
-        assert_eq!(nodes[0].protocol.as_deref().unwrap_or(""), "");
-        assert_eq!(nodes[0].encrypt_method.as_deref().unwrap_or(""), "");
-        assert_eq!(nodes[0].obfs.as_deref().unwrap_or(""), "");
-        assert_eq!(nodes[0].password.as_deref().unwrap_or(""), "");
-        assert_eq!(nodes[0].obfs_param.as_deref().unwrap_or(""), "");
-        assert_eq!(nodes[0].protocol_param.as_deref().unwrap_or(""), "");
+        assert_eq!(nodes[0].protocol().unwrap_or(""), "");
+        assert_eq!(nodes[0].encrypt_method().unwrap_or(""), "");
+        assert_eq!(nodes[0].obfs().unwrap_or(""), "");
+        assert_eq!(nodes[0].password().unwrap_or(""), "");
+        assert_eq!(nodes[0].obfs_param().unwrap_or(""), "");
+        assert_eq!(nodes[0].protocol_param().unwrap_or(""), "");
         assert_eq!(nodes[0].remark, "example.com (8388)");
         assert_eq!(nodes[0].group, SSR_DEFAULT_GROUP);
     }

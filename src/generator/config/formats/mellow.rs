@@ -97,16 +97,16 @@ async fn proxy_to_mellow_internal(
         // Extract node properties for easier access
         let hostname = &node.hostname;
         let port = node.port.to_string();
-        let username = node.username.as_deref().unwrap_or("");
-        let password = node.password.as_deref().unwrap_or("");
-        let method = node.encrypt_method.as_deref().unwrap_or("");
-        let id = node.user_id.as_deref().unwrap_or("");
-        let transproto = node.transfer_protocol.as_deref().unwrap_or("");
-        let host = node.host.as_deref().unwrap_or("");
-        let path = node.path.as_deref().unwrap_or("");
-        let quicsecure = node.quic_secure.as_deref().unwrap_or("");
-        let quicsecret = node.quic_secret.as_deref().unwrap_or("");
-        let plugin = node.plugin.as_deref().unwrap_or("");
+        let username = node.username().unwrap_or("");
+        let password = node.password().unwrap_or("");
+        let method = node.encrypt_method().unwrap_or("");
+        let id = node.user_id().unwrap_or("");
+        let transproto = node.transfer_protocol().unwrap_or("");
+        let host = node.host().unwrap_or("");
+        let path = node.path().unwrap_or("");
+        let quicsecure = node.quic_secure().unwrap_or("");
+        let quicsecret = node.quic_secret().unwrap_or("");
+        let plugin = node.plugin().unwrap_or("");
         let tls_secure = if node.tls_secure { "true" } else { "false" };
 
         // Get option values with defaults from ext

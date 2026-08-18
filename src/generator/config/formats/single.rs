@@ -94,21 +94,21 @@ pub fn proxy_to_single(
         let port = node.port.to_string();
 
         // Extract optional fields with safe defaults
-        let password = node.password.as_deref().unwrap_or("");
-        let method = node.encrypt_method.as_deref().unwrap_or("");
-        let plugin = node.plugin.as_deref().unwrap_or("");
-        let plugin_opts = node.plugin_option.as_deref().unwrap_or("");
-        let protocol = node.protocol.as_deref().unwrap_or("");
-        let protocol_param = node.protocol_param.as_deref().unwrap_or("");
-        let obfs = node.obfs.as_deref().unwrap_or("");
-        let obfs_param = node.obfs_param.as_deref().unwrap_or("");
-        let user_id = node.user_id.as_deref().unwrap_or("");
-        let transfer_protocol = node.transfer_protocol.as_deref().unwrap_or("");
-        let host = node.host.as_deref().unwrap_or("");
-        let path = node.path.as_deref().unwrap_or("");
-        let fake_type = node.fake_type.as_deref();
+        let password = node.password().unwrap_or("");
+        let method = node.encrypt_method().unwrap_or("");
+        let plugin = node.plugin().unwrap_or("");
+        let plugin_opts = node.plugin_option().unwrap_or("");
+        let protocol = node.protocol().unwrap_or("");
+        let protocol_param = node.protocol_param().unwrap_or("");
+        let obfs = node.obfs().unwrap_or("");
+        let obfs_param = node.obfs_param().unwrap_or("");
+        let user_id = node.user_id().unwrap_or("");
+        let transfer_protocol = node.transfer_protocol().unwrap_or("");
+        let host = node.host().unwrap_or("");
+        let path = node.path().unwrap_or("");
+        let fake_type = node.fake_type();
         let tls_secure = node.tls_secure;
-        let alter_id = node.alter_id;
+        let alter_id = node.alter_id();
         let group = node.group.as_ref();
 
         let mut _proxy_str = String::new();

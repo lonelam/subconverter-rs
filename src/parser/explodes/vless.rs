@@ -77,8 +77,6 @@ pub fn explode_vless(vless: &str, node: &mut Proxy) -> bool {
 
     let mut vless_proxy = VlessProxy::default();
     vless_proxy.uuid = uuid;
-    vless_proxy.tls = tls;
-    vless_proxy.alpn = alpn;
     if let Some(packet_encoding) = packet_encoding {
         let xudp = packet_encoding != "none";
         vless_proxy.xudp = Some(xudp);
@@ -86,8 +84,6 @@ pub fn explode_vless(vless: &str, node: &mut Proxy) -> bool {
         vless_proxy.packet_addr = Some(packet_addr);
     }
     vless_proxy.network = Some(network.clone());
-    vless_proxy.servername = sni;
-    vless_proxy.client_fingerprint = Some(fingerprint);
     vless_proxy.flow = flow;
 
     // Handle Reality options
@@ -167,6 +163,12 @@ pub fn explode_vless(vless: &str, node: &mut Proxy) -> bool {
     node.remark = url_decode(url.fragment().unwrap_or(""));
     node.hostname = host.to_string();
     node.port = port;
+    // VLESS defaults to udp on
+    node.udp = Some(true);
+    node.tls_secure = tls;
+    node.sni = sni;
+    node.alpn = alpn;
+    node.client_fingerprint = Some(fingerprint);
 
     true
 }

@@ -48,13 +48,13 @@ fn build_singbox_transport(proxy: &Proxy) -> JsonValue {
     let mut transport = Map::new();
 
     // Extract transport protocol
-    let transproto = proxy.transfer_protocol.as_deref().unwrap_or("");
+    let transproto = proxy.transfer_protocol().unwrap_or("");
 
     match transproto {
         "http" => {
-            if let Some(host) = &proxy.host {
+            if let Some(host) = proxy.host() {
                 if !host.is_empty() {
-                    transport.insert("host".to_string(), JsonValue::String(host.clone()));
+                    transport.insert("host".to_string(), JsonValue::String(host.to_string()));
                 }
             }
             // Fall through to WS handler for common settings
@@ -64,23 +64,23 @@ fn build_singbox_transport(proxy: &Proxy) -> JsonValue {
             transport.insert("type".to_string(), JsonValue::String("ws".to_string()));
 
             // Set path or default to "/"
-            if let Some(path) = &proxy.path {
-                transport.insert("path".to_string(), JsonValue::String(path.clone()));
+            if let Some(path) = proxy.path() {
+                transport.insert("path".to_string(), JsonValue::String(path.to_string()));
             } else {
                 transport.insert("path".to_string(), JsonValue::String("/".to_string()));
             }
 
             // Add headers
             let mut headers = Map::new();
-            if let Some(host) = &proxy.host {
+            if let Some(host) = proxy.host() {
                 if !host.is_empty() {
-                    headers.insert("Host".to_string(), JsonValue::String(host.clone()));
+                    headers.insert("Host".to_string(), JsonValue::String(host.to_string()));
                 }
             }
 
-            if let Some(edge) = &proxy.edge {
+            if let Some(edge) = proxy.edge() {
                 if !edge.is_empty() {
-                    headers.insert("Edge".to_string(), JsonValue::String(edge.clone()));
+                    headers.insert("Edge".to_string(), JsonValue::String(edge.to_string()));
                 }
             }
 
@@ -91,9 +91,9 @@ fn build_singbox_transport(proxy: &Proxy) -> JsonValue {
         "grpc" => {
             transport.insert("type".to_string(), JsonValue::String("grpc".to_string()));
 
-            if let Some(path) = &proxy.path {
+            if let Some(path) = proxy.path() {
                 if !path.is_empty() {
-                    transport.insert("service_name".to_string(), JsonValue::String(path.clone()));
+                    transport.insert("service_name".to_string(), JsonValue::String(path.to_string()));
                 }
             }
         }
@@ -238,16 +238,16 @@ pub fn proxy_to_singbox(
                 add_singbox_common_members(&mut obj, node, "shadowsocks");
 
                 // Add encryption method and password
-                if let Some(method) = &node.encrypt_method {
-                    obj.insert("method".to_string(), JsonValue::String(method.clone()));
+                if let Some(method) = node.encrypt_method() {
+                    obj.insert("method".to_string(), JsonValue::String(method.to_string()));
                 }
 
-                if let Some(password) = &node.password {
-                    obj.insert("password".to_string(), JsonValue::String(password.clone()));
+                if let Some(password) = node.password() {
+                    obj.insert("password".to_string(), JsonValue::String(password.to_string()));
                 }
 
                 // Handle plugin if present
-                if let (Some(plugin), Some(plugin_opts)) = (&node.plugin, &node.plugin_option) {
+                if let (Some(plugin), Some(plugin_opts)) = (node.plugin(), node.plugin_option()) {
                     if !plugin.is_empty() && !plugin_opts.is_empty() {
                         let plugin_name = if plugin == "simple-obfs" {
                             "obfs-local"
@@ -261,7 +261,7 @@ pub fn proxy_to_singbox(
                         );
                         obj.insert(
                             "plugin_opts".to_string(),
-                            JsonValue::String(plugin_opts.clone()),
+                            JsonValue::String(plugin_opts.to_string()),
                         );
                     }
                 }
@@ -273,33 +273,33 @@ pub fn proxy_to_singbox(
                 add_singbox_common_members(&mut obj, node, "shadowsocksr");
 
                 // Add shadowsocksr specific fields
-                if let Some(method) = &node.encrypt_method {
-                    obj.insert("method".to_string(), JsonValue::String(method.clone()));
+                if let Some(method) = node.encrypt_method() {
+                    obj.insert("method".to_string(), JsonValue::String(method.to_string()));
                 }
 
-                if let Some(password) = &node.password {
-                    obj.insert("password".to_string(), JsonValue::String(password.clone()));
+                if let Some(password) = node.password() {
+                    obj.insert("password".to_string(), JsonValue::String(password.to_string()));
                 }
 
-                if let Some(protocol) = &node.protocol {
-                    obj.insert("protocol".to_string(), JsonValue::String(protocol.clone()));
+                if let Some(protocol) = node.protocol() {
+                    obj.insert("protocol".to_string(), JsonValue::String(protocol.to_string()));
                 }
 
-                if let Some(protocol_param) = &node.protocol_param {
+                if let Some(protocol_param) = node.protocol_param() {
                     obj.insert(
                         "protocol_param".to_string(),
-                        JsonValue::String(protocol_param.clone()),
+                        JsonValue::String(protocol_param.to_string()),
                     );
                 }
 
-                if let Some(obfs) = &node.obfs {
-                    obj.insert("obfs".to_string(), JsonValue::String(obfs.clone()));
+                if let Some(obfs) = node.obfs() {
+                    obj.insert("obfs".to_string(), JsonValue::String(obfs.to_string()));
                 }
 
-                if let Some(obfs_param) = &node.obfs_param {
+                if let Some(obfs_param) = node.obfs_param() {
                     obj.insert(
                         "obfs_param".to_string(),
-                        JsonValue::String(obfs_param.clone()),
+                        JsonValue::String(obfs_param.to_string()),
                     );
                 }
 
@@ -310,17 +310,17 @@ pub fn proxy_to_singbox(
                 add_singbox_common_members(&mut obj, node, "vmess");
 
                 // Add VMess specific fields
-                if let Some(user_id) = &node.user_id {
-                    obj.insert("uuid".to_string(), JsonValue::String(user_id.clone()));
+                if let Some(user_id) = node.user_id() {
+                    obj.insert("uuid".to_string(), JsonValue::String(user_id.to_string()));
                 }
 
                 obj.insert(
                     "alter_id".to_string(),
-                    JsonValue::Number(node.alter_id.into()),
+                    JsonValue::Number(node.alter_id().into()),
                 );
 
-                if let Some(method) = &node.encrypt_method {
-                    obj.insert("security".to_string(), JsonValue::String(method.clone()));
+                if let Some(method) = node.encrypt_method() {
+                    obj.insert("security".to_string(), JsonValue::String(method.to_string()));
                 }
 
                 // Add transport settings if any
@@ -336,8 +336,8 @@ pub fn proxy_to_singbox(
                 add_singbox_common_members(&mut obj, node, "trojan");
 
                 // Add Trojan specific fields
-                if let Some(password) = &node.password {
-                    obj.insert("password".to_string(), JsonValue::String(password.clone()));
+                if let Some(password) = node.password() {
+                    obj.insert("password".to_string(), JsonValue::String(password.to_string()));
                 }
 
                 // Add transport settings if any
@@ -349,6 +349,8 @@ pub fn proxy_to_singbox(
                 obj
             }
             ProxyType::WireGuard => {
+                let default_wg = Default::default();
+                let wg = node.as_wireguard().unwrap_or(&default_wg);
                 let mut obj = Map::new();
                 obj.insert(
                     "type".to_string(),
@@ -358,22 +360,22 @@ pub fn proxy_to_singbox(
 
                 // Add WireGuard specific fields
                 let mut addresses = Vec::new();
-                if let Some(self_ip) = &node.self_ip {
-                    addresses.push(JsonValue::String(self_ip.clone()));
+                if let Some(self_ip) = &wg.self_ip {
+                    addresses.push(JsonValue::String(self_ip.to_string()));
                 }
 
-                if let Some(self_ipv6) = &node.self_ipv6 {
+                if let Some(self_ipv6) = &wg.self_ipv6 {
                     if !self_ipv6.is_empty() {
-                        addresses.push(JsonValue::String(self_ipv6.clone()));
+                        addresses.push(JsonValue::String(self_ipv6.to_string()));
                     }
                 }
 
                 obj.insert("local_address".to_string(), JsonValue::Array(addresses));
 
-                if let Some(private_key) = &node.private_key {
+                if let Some(private_key) = &wg.private_key {
                     obj.insert(
                         "private_key".to_string(),
-                        JsonValue::String(private_key.clone()),
+                        JsonValue::String(private_key.to_string()),
                     );
                 }
 
@@ -388,28 +390,28 @@ pub fn proxy_to_singbox(
                     JsonValue::Number(node.port.into()),
                 );
 
-                if let Some(public_key) = &node.public_key {
+                if let Some(public_key) = &wg.public_key {
                     peer.insert(
                         "public_key".to_string(),
-                        JsonValue::String(public_key.clone()),
+                        JsonValue::String(public_key.to_string()),
                     );
                 }
 
-                if let Some(pre_shared_key) = &node.pre_shared_key {
+                if let Some(pre_shared_key) = &wg.pre_shared_key {
                     if !pre_shared_key.is_empty() {
                         peer.insert(
                             "pre_shared_key".to_string(),
-                            JsonValue::String(pre_shared_key.clone()),
+                            JsonValue::String(pre_shared_key.to_string()),
                         );
                     }
                 }
 
-                if !node.allowed_ips.is_empty() {
-                    let allowed_ips = string_array_to_json_array(&node.allowed_ips, ",");
+                if !wg.allowed_ips.is_empty() {
+                    let allowed_ips = string_array_to_json_array(&wg.allowed_ips, ",");
                     peer.insert("allowed_ips".to_string(), allowed_ips);
                 }
 
-                if let Some(client_id) = &node.client_id {
+                if let Some(client_id) = &wg.client_id {
                     if !client_id.is_empty() {
                         let reserved = string_array_to_json_array(client_id, ",");
                         peer.insert("reserved".to_string(), reserved);
@@ -421,40 +423,42 @@ pub fn proxy_to_singbox(
                 obj.insert("peers".to_string(), JsonValue::Array(peers));
 
                 // Add MTU if present
-                if node.mtu > 0 {
-                    obj.insert("mtu".to_string(), JsonValue::Number(node.mtu.into()));
+                if wg.mtu > 0 {
+                    obj.insert("mtu".to_string(), JsonValue::Number(wg.mtu.into()));
                 }
 
                 obj
             }
             ProxyType::Hysteria => {
+                let default_hy = Default::default();
+                let hy = node.as_hysteria().unwrap_or(&default_hy);
                 let mut obj = Map::new();
                 add_singbox_common_members(&mut obj, node, "hysteria");
 
                 // Add Hysteria specific fields
-                if node.up_speed > 0 {
+                if node.up_speed() > 0 {
                     obj.insert(
                         "up_mbps".to_string(),
-                        JsonValue::Number(node.up_speed.into()),
+                        JsonValue::Number(node.up_speed().into()),
                     );
                 }
 
-                if node.down_speed > 0 {
+                if node.down_speed() > 0 {
                     obj.insert(
                         "down_mbps".to_string(),
-                        JsonValue::Number(node.down_speed.into()),
+                        JsonValue::Number(node.down_speed().into()),
                     );
                 }
 
-                if let Some(obfs) = &node.obfs {
+                if let Some(obfs) = node.obfs() {
                     if !obfs.is_empty() {
-                        obj.insert("obfs".to_string(), JsonValue::String(obfs.clone()));
+                        obj.insert("obfs".to_string(), JsonValue::String(obfs.to_string()));
                     }
                 }
 
-                if let Some(auth_str) = &node.auth_str {
+                if let Some(auth_str) = node.auth_str() {
                     if !auth_str.is_empty() {
-                        obj.insert("auth_str".to_string(), JsonValue::String(auth_str.clone()));
+                        obj.insert("auth_str".to_string(), JsonValue::String(auth_str.to_string()));
 
                         // Create a temporary String
                         let auth_str_value = auth_str.clone();
@@ -465,21 +469,21 @@ pub fn proxy_to_singbox(
                     }
                 }
 
-                if node.recv_window_conn > 0 {
+                if hy.recv_window_conn > 0 {
                     obj.insert(
                         "recv_window_conn".to_string(),
-                        JsonValue::Number(node.recv_window_conn.into()),
+                        JsonValue::Number(hy.recv_window_conn.into()),
                     );
                 }
 
-                if node.recv_window > 0 {
+                if hy.recv_window > 0 {
                     obj.insert(
                         "recv_window".to_string(),
-                        JsonValue::Number(node.recv_window.into()),
+                        JsonValue::Number(hy.recv_window.into()),
                     );
                 }
 
-                if let Some(disable_mtu_discovery) = node.disable_mtu_discovery {
+                if let Some(disable_mtu_discovery) = hy.disable_mtu_discovery {
                     obj.insert(
                         "disable_mtu_discovery".to_string(),
                         JsonValue::Bool(disable_mtu_discovery),
@@ -499,15 +503,15 @@ pub fn proxy_to_singbox(
                     tls.insert("alpn".to_string(), JsonValue::Array(alpn));
                 }
 
-                if let Some(ca) = &node.ca {
+                if let Some(ca) = &hy.ca {
                     if !ca.is_empty() {
                         tls.insert("certificate".to_string(), JsonValue::String(ca.to_string()));
                     }
                 }
 
-                if let Some(ca_str) = &node.ca_str {
+                if let Some(ca_str) = &hy.ca_str {
                     if !ca_str.is_empty() {
-                        tls.insert("certificate".to_string(), JsonValue::String(ca_str.clone()));
+                        tls.insert("certificate".to_string(), JsonValue::String(ca_str.to_string()));
                     }
                 }
 
@@ -515,34 +519,36 @@ pub fn proxy_to_singbox(
                 obj
             }
             ProxyType::Hysteria2 => {
+                let default_hy2 = Default::default();
+                let hy2 = node.as_hysteria2().unwrap_or(&default_hy2);
                 let mut obj = Map::new();
                 add_singbox_common_members(&mut obj, node, "hysteria2");
 
                 // Add Hysteria2 specific fields
-                if node.up_speed > 0 {
+                if node.up_speed() > 0 {
                     obj.insert(
                         "up_mbps".to_string(),
-                        JsonValue::Number(node.up_speed.into()),
+                        JsonValue::Number(node.up_speed().into()),
                     );
                 }
 
-                if node.down_speed > 0 {
+                if node.down_speed() > 0 {
                     obj.insert(
                         "down_mbps".to_string(),
-                        JsonValue::Number(node.down_speed.into()),
+                        JsonValue::Number(node.down_speed().into()),
                     );
                 }
 
-                if let Some(obfs) = &node.obfs {
+                if let Some(obfs) = node.obfs() {
                     if !obfs.is_empty() {
                         let mut obfs_obj = Map::new();
-                        obfs_obj.insert("type".to_string(), JsonValue::String(obfs.clone()));
+                        obfs_obj.insert("type".to_string(), JsonValue::String(obfs.to_string()));
 
-                        if let Some(obfs_param) = &node.obfs_param {
+                        if let Some(obfs_param) = node.obfs_param() {
                             if !obfs_param.is_empty() {
                                 obfs_obj.insert(
                                     "password".to_string(),
-                                    JsonValue::String(obfs_param.clone()),
+                                    JsonValue::String(obfs_param.to_string()),
                                 );
                             }
                         }
@@ -551,9 +557,9 @@ pub fn proxy_to_singbox(
                     }
                 }
 
-                if let Some(password) = &node.password {
+                if let Some(password) = node.password() {
                     if !password.is_empty() {
-                        obj.insert("password".to_string(), JsonValue::String(password.clone()));
+                        obj.insert("password".to_string(), JsonValue::String(password.to_string()));
                     }
                 }
 
@@ -570,15 +576,15 @@ pub fn proxy_to_singbox(
                     tls.insert("alpn".to_string(), JsonValue::Array(alpn));
                 }
 
-                if let Some(ca) = &node.ca {
+                if let Some(ca) = &hy2.ca {
                     if !ca.is_empty() {
                         tls.insert("certificate".to_string(), JsonValue::String(ca.to_string()));
                     }
                 }
 
-                if let Some(ca_str) = &node.ca_str {
+                if let Some(ca_str) = &hy2.ca_str {
                     if !ca_str.is_empty() {
-                        tls.insert("certificate".to_string(), JsonValue::String(ca_str.clone()));
+                        tls.insert("certificate".to_string(), JsonValue::String(ca_str.to_string()));
                     }
                 }
 
@@ -590,12 +596,12 @@ pub fn proxy_to_singbox(
                 add_singbox_common_members(&mut obj, node, "http");
 
                 // Add HTTP/HTTPS specific fields
-                if let Some(username) = &node.username {
-                    obj.insert("username".to_string(), JsonValue::String(username.clone()));
+                if let Some(username) = node.username() {
+                    obj.insert("username".to_string(), JsonValue::String(username.to_string()));
                 }
 
-                if let Some(password) = &node.password {
-                    obj.insert("password".to_string(), JsonValue::String(password.clone()));
+                if let Some(password) = node.password() {
+                    obj.insert("password".to_string(), JsonValue::String(password.to_string()));
                 }
 
                 obj
@@ -607,12 +613,12 @@ pub fn proxy_to_singbox(
                 // Add Socks5 specific fields
                 obj.insert("version".to_string(), JsonValue::String("5".to_string()));
 
-                if let Some(username) = &node.username {
-                    obj.insert("username".to_string(), JsonValue::String(username.clone()));
+                if let Some(username) = node.username() {
+                    obj.insert("username".to_string(), JsonValue::String(username.to_string()));
                 }
 
-                if let Some(password) = &node.password {
-                    obj.insert("password".to_string(), JsonValue::String(password.clone()));
+                if let Some(password) = node.password() {
+                    obj.insert("password".to_string(), JsonValue::String(password.to_string()));
                 }
 
                 obj
@@ -626,16 +632,16 @@ pub fn proxy_to_singbox(
             tls.insert("enabled".to_string(), JsonValue::Bool(true));
 
             // Set server_name from ServerName or Host
-            if let Some(server_name) = &node.server_name {
+            if let Some(server_name) = &node.sni {
                 if !server_name.is_empty() {
                     tls.insert(
                         "server_name".to_string(),
-                        JsonValue::String(server_name.clone()),
+                        JsonValue::String(server_name.to_string()),
                     );
                 }
-            } else if let Some(host) = &node.host {
+            } else if let Some(host) = node.host() {
                 if !host.is_empty() {
-                    tls.insert("server_name".to_string(), JsonValue::String(host.clone()));
+                    tls.insert("server_name".to_string(), JsonValue::String(host.to_string()));
                 }
             }
 
@@ -707,7 +713,7 @@ pub fn proxy_to_singbox(
         // Add outbounds
         let group_outbounds: Vec<JsonValue> = filtered_nodelist
             .iter()
-            .map(|name| JsonValue::String(name.clone()))
+            .map(|name| JsonValue::String(name.to_string()))
             .collect();
 
         group_obj.insert("outbounds".to_string(), JsonValue::Array(group_outbounds));
@@ -746,7 +752,7 @@ pub fn proxy_to_singbox(
 
         // Add all remarks
         for remark in &remarks_list {
-            global_outbounds.push(JsonValue::String(remark.clone()));
+            global_outbounds.push(JsonValue::String(remark.to_string()));
         }
 
         global_group.insert("outbounds".to_string(), JsonValue::Array(global_outbounds));

@@ -88,6 +88,9 @@ proxies:
   port: 44046
   psk: snellpsk
   version: 3
+  obfs-opts:
+    host: bing.com
+    mode: http
 - type: http
   name: http-node
   server: http.example.com

@@ -68,19 +68,19 @@ pub async fn proxy_to_loon(
         // Extract node properties for easier access
         let hostname = &node.hostname;
         let port = node.port.to_string();
-        let username = node.username.as_deref().unwrap_or("");
-        let password = node.password.as_deref().unwrap_or("");
-        let method = node.encrypt_method.as_deref().unwrap_or("");
-        let id = node.user_id.as_deref().unwrap_or("");
-        let transproto = node.transfer_protocol.as_deref().unwrap_or("");
-        let host = node.host.as_deref().unwrap_or("");
-        let path = node.path.as_deref().unwrap_or("");
-        let protocol = node.protocol.as_deref().unwrap_or("");
-        let protoparam = node.protocol_param.as_deref().unwrap_or("");
-        let obfs = node.obfs.as_deref().unwrap_or("");
-        let obfsparam = node.obfs_param.as_deref().unwrap_or("");
-        let plugin = node.plugin.as_deref().unwrap_or("");
-        let pluginopts = node.plugin_option.as_deref().unwrap_or("");
+        let username = node.username().unwrap_or("");
+        let password = node.password().unwrap_or("");
+        let method = node.encrypt_method().unwrap_or("");
+        let id = node.user_id().unwrap_or("");
+        let transproto = node.transfer_protocol().unwrap_or("");
+        let host = node.host().unwrap_or("");
+        let path = node.path().unwrap_or("");
+        let protocol = node.protocol().unwrap_or("");
+        let protoparam = node.protocol_param().unwrap_or("");
+        let obfs = node.obfs().unwrap_or("");
+        let obfsparam = node.obfs_param().unwrap_or("");
+        let plugin = node.plugin().unwrap_or("");
+        let pluginopts = node.plugin_option().unwrap_or("");
         let tls_secure = node.tls_secure;
 
         // Define tribool values with defaults from ext and override with node-specific values
@@ -240,23 +240,25 @@ pub async fn proxy_to_loon(
                 }
             }
             ProxyType::WireGuard => {
+                let default_wg = Default::default();
+                let wg = node.as_wireguard().unwrap_or(&default_wg);
                 proxy = format!(
                     "wireguard, interface-ip={}",
-                    node.self_ip.as_deref().unwrap_or("")
+                    wg.self_ip.as_deref().unwrap_or("")
                 );
 
-                if let Some(ipv6) = &node.self_ipv6 {
+                if let Some(ipv6) = &wg.self_ipv6 {
                     if !ipv6.is_empty() {
                         proxy.push_str(&format!(", interface-ipv6={}", ipv6));
                     }
                 }
 
-                if let Some(private_key) = &node.private_key {
+                if let Some(private_key) = &wg.private_key {
                     proxy.push_str(&format!(", private-key={}", private_key));
                 }
 
                 // Add DNS servers
-                for server in &node.dns_servers {
+                for server in &wg.dns_servers {
                     // Check if IPv4 or IPv6
                     if server.contains('.') {
                         proxy.push_str(&format!(", dns={}", server));
@@ -265,12 +267,12 @@ pub async fn proxy_to_loon(
                     }
                 }
 
-                if node.mtu > 0 {
-                    proxy.push_str(&format!(", mtu={}", node.mtu));
+                if wg.mtu > 0 {
+                    proxy.push_str(&format!(", mtu={}", wg.mtu));
                 }
 
-                if node.keep_alive > 0 {
-                    proxy.push_str(&format!(", keepalive={}", node.keep_alive));
+                if wg.keep_alive > 0 {
+                    proxy.push_str(&format!(", keepalive={}", wg.keep_alive));
                 }
 
                 // Add peer info
@@ -420,18 +422,20 @@ pub async fn proxy_to_loon(
 /// * Peer configuration string
 fn generate_peer(node: &Proxy, client_id_as_reserved: bool) -> String {
     let mut peer = String::new();
+    let default_wg = Default::default();
+    let wg = node.as_wireguard().unwrap_or(&default_wg);
 
-    if let Some(public_key) = &node.public_key {
+    if let Some(public_key) = &wg.public_key {
         peer.push_str(&format!("public-key={}", public_key));
     }
 
     peer.push_str(&format!(", endpoint={}:{}", node.hostname, node.port));
 
-    if !node.allowed_ips.is_empty() {
-        peer.push_str(&format!(", allowed-ips={}", node.allowed_ips));
+    if !wg.allowed_ips.is_empty() {
+        peer.push_str(&format!(", allowed-ips={}", wg.allowed_ips));
     }
 
-    if let Some(client_id) = &node.client_id {
+    if let Some(client_id) = &wg.client_id {
         if !client_id.is_empty() {
             if client_id_as_reserved {
                 peer.push_str(&format!(", reserved={}", client_id));

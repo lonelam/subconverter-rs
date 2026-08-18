@@ -47,7 +47,8 @@
       "tag": "trojan-node",
       "tls": {
         "enabled": true,
-        "insecure": false
+        "insecure": false,
+        "server_name": "tsni.example.com"
       },
       "type": "trojan"
     },

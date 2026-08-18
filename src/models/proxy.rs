@@ -6,7 +6,19 @@ use std::collections::HashSet;
 
 use serde::{Deserialize, Serialize};
 
+use super::proxy_node::anytls::AnyTlsProxy;
 use super::proxy_node::combined::CombinedProxy;
+use super::proxy_node::http::HttpProxy;
+use super::proxy_node::hysteria::HysteriaProxy;
+use super::proxy_node::hysteria2::Hysteria2Proxy;
+use super::proxy_node::shadowsocks::ShadowsocksProxy;
+use super::proxy_node::shadowsocksr::ShadowsocksRProxy;
+use super::proxy_node::snell::SnellProxy;
+use super::proxy_node::socks5::Socks5Proxy;
+use super::proxy_node::trojan::TrojanProxy;
+use super::proxy_node::vless::VlessProxy;
+use super::proxy_node::vmess::VmessProxy;
+use super::proxy_node::wireguard::WireGuardProxy;
 
 /// Represents the type of a proxy.
 /// This is the canonical enum used for proxy type identification across the
@@ -25,7 +37,6 @@ pub enum ProxyType {
     WireGuard,
     Hysteria,
     Hysteria2,
-    // new proxy types could be added as enum combined proxy types
     Vless,
     AnyTls,
 }
@@ -53,6 +64,11 @@ impl ProxyType {
 }
 
 /// Represents a proxy configuration. Serialized for JavaScripts.
+///
+/// Fields shared across protocols (endpoint, TLS parameters, transport
+/// behavior flags) live directly on this struct; everything protocol-specific
+/// lives in [`CombinedProxy`] so each piece of information has exactly one
+/// home.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct Proxy {
@@ -66,73 +82,27 @@ pub struct Proxy {
     pub hostname: String,
     pub port: u16,
 
-    pub username: Option<String>,
-    pub password: Option<String>,
-    pub encrypt_method: Option<String>,
-    pub plugin: Option<String>,
-    /// Plugin options in the format of `key1=value1;key2=value2`
-    pub plugin_option: Option<String>,
-    pub protocol: Option<String>,
-    pub protocol_param: Option<String>,
-    pub obfs: Option<String>,
-    pub obfs_param: Option<String>,
-    pub user_id: Option<String>,
-    pub alter_id: u16,
-    pub transfer_protocol: Option<String>,
-    pub fake_type: Option<String>,
-    pub tls_secure: bool,
-
-    pub host: Option<String>,
-    pub path: Option<String>,
-    pub edge: Option<String>,
-
-    pub quic_secure: Option<String>,
-    pub quic_secret: Option<String>,
-
+    /// Whether the node supports UDP relay
     pub udp: Option<bool>,
+    /// TCP Fast Open
     pub tcp_fast_open: Option<bool>,
+    /// Skip certificate verification
     pub allow_insecure: Option<bool>,
     pub tls13: Option<bool>,
-
     pub underlying_proxy: Option<String>,
 
-    pub snell_version: u16,
-    pub server_name: Option<String>,
-
-    pub self_ip: Option<String>,
-    pub self_ipv6: Option<String>,
-    pub public_key: Option<String>,
-    pub private_key: Option<String>,
-    pub pre_shared_key: Option<String>,
-    pub dns_servers: HashSet<String>,
-    pub mtu: u16,
-    pub allowed_ips: String,
-    pub keep_alive: u16,
-    pub test_url: Option<String>,
-    pub client_id: Option<String>,
-
-    pub ports: Option<String>,
-    /// upload speed in Mbps
-    pub up_speed: u32,
-    /// download speed in Mbps
-    pub down_speed: u32,
-    pub auth: Option<String>,
-    pub auth_str: Option<String>,
+    /// Whether the connection is TLS-secured
+    pub tls_secure: bool,
+    /// TLS server name indication
     pub sni: Option<String>,
+    /// TLS ALPN protocols
+    pub alpn: HashSet<String>,
+    /// TLS certificate fingerprint
     pub fingerprint: Option<String>,
     /// uTLS client fingerprint (e.g. "chrome"), distinct from the TLS
     /// certificate `fingerprint` above
     #[serde(default)]
     pub client_fingerprint: Option<String>,
-    pub ca: Option<String>,
-    pub ca_str: Option<String>,
-    pub recv_window_conn: u32,
-    pub recv_window: u32,
-    pub disable_mtu_discovery: Option<bool>,
-    pub hop_interval: u32,
-    pub alpn: HashSet<String>,
-
-    pub cwnd: u32,
 }
 
 /// Implement Default for Proxy
@@ -147,59 +117,16 @@ impl Default for Proxy {
             remark: String::new(),
             hostname: String::new(),
             port: 0,
-            username: None,
-            password: None,
-            encrypt_method: None,
-            plugin: None,
-            plugin_option: None,
-            protocol: None,
-            protocol_param: None,
-            obfs: None,
-            obfs_param: None,
-            user_id: None,
-            alter_id: 0,
-            transfer_protocol: None,
-            fake_type: None,
-            tls_secure: false,
-            host: None,
-            path: None,
-            edge: None,
-            quic_secure: None,
-            quic_secret: None,
             udp: None,
             tcp_fast_open: None,
             allow_insecure: None,
             tls13: None,
             underlying_proxy: None,
-            snell_version: 0,
-            server_name: None,
-            self_ip: None,
-            self_ipv6: None,
-            public_key: None,
-            private_key: None,
-            pre_shared_key: None,
-            dns_servers: HashSet::new(),
-            mtu: 0,
-            allowed_ips: String::from("0.0.0.0/0, ::/0"),
-            keep_alive: 0,
-            test_url: None,
-            client_id: None,
-            ports: None,
-            up_speed: 0,
-            down_speed: 0,
-            auth: None,
-            auth_str: None,
+            tls_secure: false,
             sni: None,
+            alpn: HashSet::new(),
             fingerprint: None,
             client_fingerprint: None,
-            ca: None,
-            ca_str: None,
-            recv_window_conn: 0,
-            recv_window: 0,
-            disable_mtu_discovery: None,
-            hop_interval: 0,
-            alpn: HashSet::new(),
-            cwnd: 0,
         }
     }
 }
@@ -220,12 +147,241 @@ impl<'js> IntoJs<'js> for Proxy {
     }
 }
 
+macro_rules! typed_accessors {
+    ($as_ref:ident, $as_mut:ident, $variant:ident, $ty:ty) => {
+        pub fn $as_ref(&self) -> Option<&$ty> {
+            match &self.combined_proxy {
+                Some(CombinedProxy::$variant(inner)) => Some(inner),
+                _ => None,
+            }
+        }
+
+        pub fn $as_mut(&mut self) -> Option<&mut $ty> {
+            match &mut self.combined_proxy {
+                Some(CombinedProxy::$variant(inner)) => Some(inner),
+                _ => None,
+            }
+        }
+    };
+}
+
 impl Proxy {
-    pub fn is_combined_proxy(&self) -> bool {
-        matches!(
-            self.proxy_type,
-            ProxyType::Vless | ProxyType::Shadowsocks | ProxyType::AnyTls
-        )
+    typed_accessors!(as_shadowsocks, as_shadowsocks_mut, Shadowsocks, ShadowsocksProxy);
+    typed_accessors!(
+        as_shadowsocksr,
+        as_shadowsocksr_mut,
+        ShadowsocksR,
+        ShadowsocksRProxy
+    );
+    typed_accessors!(as_vmess, as_vmess_mut, VMess, VmessProxy);
+    typed_accessors!(as_trojan, as_trojan_mut, Trojan, TrojanProxy);
+    typed_accessors!(as_snell, as_snell_mut, Snell, SnellProxy);
+    typed_accessors!(as_http, as_http_mut, Http, HttpProxy);
+    typed_accessors!(as_socks5, as_socks5_mut, Socks5, Socks5Proxy);
+    typed_accessors!(as_wireguard, as_wireguard_mut, WireGuard, WireGuardProxy);
+    typed_accessors!(as_hysteria, as_hysteria_mut, Hysteria, HysteriaProxy);
+    typed_accessors!(as_hysteria2, as_hysteria2_mut, Hysteria2, Hysteria2Proxy);
+    typed_accessors!(as_vless, as_vless_mut, Vless, VlessProxy);
+    typed_accessors!(as_anytls, as_anytls_mut, AnyTls, AnyTlsProxy);
+
+    /// The password / PSK / auth secret of the node, regardless of protocol.
+    pub fn password(&self) -> Option<&str> {
+        match &self.combined_proxy {
+            Some(CombinedProxy::Shadowsocks(ss)) => Some(ss.password.as_str()),
+            Some(CombinedProxy::ShadowsocksR(ssr)) => Some(ssr.password.as_str()),
+            Some(CombinedProxy::Trojan(trojan)) => Some(trojan.password.as_str()),
+            Some(CombinedProxy::Http(http)) => http.password.as_deref(),
+            Some(CombinedProxy::Socks5(socks)) => socks.password.as_deref(),
+            Some(CombinedProxy::Snell(snell)) => Some(snell.psk.as_str()),
+            Some(CombinedProxy::Hysteria2(hy2)) => Some(hy2.password.as_str()),
+            Some(CombinedProxy::AnyTls(anytls)) => Some(anytls.password.as_str()),
+            _ => None,
+        }
+    }
+
+    pub fn username(&self) -> Option<&str> {
+        match &self.combined_proxy {
+            Some(CombinedProxy::Http(http)) => http.username.as_deref(),
+            Some(CombinedProxy::Socks5(socks)) => socks.username.as_deref(),
+            _ => None,
+        }
+    }
+
+    /// Encryption method (ss/ssr cipher, vmess cipher).
+    pub fn encrypt_method(&self) -> Option<&str> {
+        match &self.combined_proxy {
+            Some(CombinedProxy::Shadowsocks(ss)) => Some(ss.cipher.as_str()),
+            Some(CombinedProxy::ShadowsocksR(ssr)) => Some(ssr.cipher.as_str()),
+            Some(CombinedProxy::VMess(vmess)) => vmess.cipher.as_deref(),
+            _ => None,
+        }
+    }
+
+    /// UUID of vmess/vless nodes.
+    pub fn user_id(&self) -> Option<&str> {
+        match &self.combined_proxy {
+            Some(CombinedProxy::VMess(vmess)) => Some(vmess.uuid.as_str()),
+            Some(CombinedProxy::Vless(vless)) => Some(vless.uuid.as_str()),
+            _ => None,
+        }
+    }
+
+    pub fn alter_id(&self) -> u16 {
+        match &self.combined_proxy {
+            Some(CombinedProxy::VMess(vmess)) => vmess.alter_id,
+            _ => 0,
+        }
+    }
+
+    /// Transport network (tcp/ws/h2/http/grpc) of vmess/trojan/vless nodes.
+    pub fn transfer_protocol(&self) -> Option<&str> {
+        match &self.combined_proxy {
+            Some(CombinedProxy::VMess(vmess)) => vmess.network.as_deref(),
+            Some(CombinedProxy::Trojan(trojan)) => trojan.network.as_deref(),
+            Some(CombinedProxy::Vless(vless)) => vless.network.as_deref(),
+            _ => None,
+        }
+    }
+
+    /// Transport host header. For snell this is the obfs host.
+    pub fn host(&self) -> Option<&str> {
+        match &self.combined_proxy {
+            Some(CombinedProxy::VMess(vmess)) => vmess.host.as_deref(),
+            Some(CombinedProxy::Trojan(trojan)) => trojan.host.as_deref(),
+            Some(CombinedProxy::Snell(snell)) => snell.obfs_host.as_deref(),
+            _ => None,
+        }
+    }
+
+    /// Transport path (ws path / h2 path / grpc service name).
+    pub fn path(&self) -> Option<&str> {
+        match &self.combined_proxy {
+            Some(CombinedProxy::VMess(vmess)) => vmess.path.as_deref(),
+            Some(CombinedProxy::Trojan(trojan)) => trojan.path.as_deref(),
+            _ => None,
+        }
+    }
+
+    pub fn edge(&self) -> Option<&str> {
+        match &self.combined_proxy {
+            Some(CombinedProxy::VMess(vmess)) => vmess.edge.as_deref(),
+            _ => None,
+        }
+    }
+
+    pub fn fake_type(&self) -> Option<&str> {
+        match &self.combined_proxy {
+            Some(CombinedProxy::VMess(vmess)) => vmess.fake_type.as_deref(),
+            _ => None,
+        }
+    }
+
+    pub fn quic_secure(&self) -> Option<&str> {
+        match &self.combined_proxy {
+            Some(CombinedProxy::VMess(vmess)) => vmess.quic_secure.as_deref(),
+            _ => None,
+        }
+    }
+
+    pub fn quic_secret(&self) -> Option<&str> {
+        match &self.combined_proxy {
+            Some(CombinedProxy::VMess(vmess)) => vmess.quic_secret.as_deref(),
+            _ => None,
+        }
+    }
+
+    /// SSR protocol / hysteria transport protocol.
+    pub fn protocol(&self) -> Option<&str> {
+        match &self.combined_proxy {
+            Some(CombinedProxy::ShadowsocksR(ssr)) => ssr.protocol.as_deref(),
+            Some(CombinedProxy::Hysteria(hysteria)) => hysteria.protocol.as_deref(),
+            _ => None,
+        }
+    }
+
+    pub fn protocol_param(&self) -> Option<&str> {
+        match &self.combined_proxy {
+            Some(CombinedProxy::ShadowsocksR(ssr)) => ssr.protocol_param.as_deref(),
+            _ => None,
+        }
+    }
+
+    pub fn obfs(&self) -> Option<&str> {
+        match &self.combined_proxy {
+            Some(CombinedProxy::ShadowsocksR(ssr)) => ssr.obfs.as_deref(),
+            Some(CombinedProxy::Snell(snell)) => snell.obfs.as_deref(),
+            Some(CombinedProxy::Hysteria(hysteria)) => hysteria.obfs.as_deref(),
+            Some(CombinedProxy::Hysteria2(hy2)) => hy2.obfs.as_deref(),
+            _ => None,
+        }
+    }
+
+    /// SSR obfs parameter / hysteria2 obfs password.
+    pub fn obfs_param(&self) -> Option<&str> {
+        match &self.combined_proxy {
+            Some(CombinedProxy::ShadowsocksR(ssr)) => ssr.obfs_param.as_deref(),
+            Some(CombinedProxy::Hysteria2(hy2)) => hy2.obfs_password.as_deref(),
+            _ => None,
+        }
+    }
+
+    pub fn plugin(&self) -> Option<&str> {
+        match &self.combined_proxy {
+            Some(CombinedProxy::Shadowsocks(ss)) => ss.plugin.as_deref(),
+            _ => None,
+        }
+    }
+
+    pub fn plugin_option(&self) -> Option<&str> {
+        match &self.combined_proxy {
+            Some(CombinedProxy::Shadowsocks(ss)) => ss.plugin_opts.as_deref(),
+            _ => None,
+        }
+    }
+
+    pub fn snell_version(&self) -> u16 {
+        match &self.combined_proxy {
+            Some(CombinedProxy::Snell(snell)) => snell.version,
+            _ => 0,
+        }
+    }
+
+    pub fn up_speed(&self) -> u32 {
+        match &self.combined_proxy {
+            Some(CombinedProxy::Hysteria(hysteria)) => hysteria.up_speed,
+            Some(CombinedProxy::Hysteria2(hy2)) => hy2.up_speed,
+            _ => 0,
+        }
+    }
+
+    pub fn down_speed(&self) -> u32 {
+        match &self.combined_proxy {
+            Some(CombinedProxy::Hysteria(hysteria)) => hysteria.down_speed,
+            Some(CombinedProxy::Hysteria2(hy2)) => hy2.down_speed,
+            _ => 0,
+        }
+    }
+
+    pub fn auth(&self) -> Option<&str> {
+        match &self.combined_proxy {
+            Some(CombinedProxy::Hysteria(hysteria)) => hysteria.auth.as_deref(),
+            _ => None,
+        }
+    }
+
+    pub fn auth_str(&self) -> Option<&str> {
+        match &self.combined_proxy {
+            Some(CombinedProxy::Hysteria(hysteria)) => hysteria.auth_str.as_deref(),
+            _ => None,
+        }
+    }
+
+    pub fn ports(&self) -> Option<&str> {
+        match &self.combined_proxy {
+            Some(CombinedProxy::Hysteria(hysteria)) => hysteria.ports.as_deref(),
+            Some(CombinedProxy::Hysteria2(hy2)) => hy2.ports.as_deref(),
+            _ => None,
+        }
     }
 
     /// 设置 UDP 支持，如果值已存在则不覆盖

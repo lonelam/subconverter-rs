@@ -176,9 +176,9 @@ mod tests {
         let link = "ss://2022-blake3-aes-128-gcm:NWI2YjgyYzU1MzZkYzYzMA%3D%3D%3AZWUyMzc4ODMtZDkxYi00NQ%3D%3D@a01.example.com:52011#HK01";
         let mut node = Proxy::default();
         assert!(explode_ss(link, &mut node));
-        assert_eq!(node.encrypt_method.as_deref(), Some("2022-blake3-aes-128-gcm"));
+        assert_eq!(node.encrypt_method(), Some("2022-blake3-aes-128-gcm"));
         assert_eq!(
-            node.password.as_deref(),
+            node.password(),
             Some("NWI2YjgyYzU1MzZkYzYzMA==:ZWUyMzc4ODMtZDkxYi00NQ==")
         );
         assert_eq!(node.hostname, "a01.example.com");
@@ -192,8 +192,8 @@ mod tests {
         let link = "ss://YWVzLTI1Ni1nY206dGVzdDEyMzQ=@example.com:8388#node";
         let mut node = Proxy::default();
         assert!(explode_ss(link, &mut node));
-        assert_eq!(node.encrypt_method.as_deref(), Some("aes-256-gcm"));
-        assert_eq!(node.password.as_deref(), Some("test1234"));
+        assert_eq!(node.encrypt_method(), Some("aes-256-gcm"));
+        assert_eq!(node.password(), Some("test1234"));
     }
 }
 

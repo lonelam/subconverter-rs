@@ -38,18 +38,19 @@
 //! let proxy = Proxy::default();
 //!
 //! // Check if an Option<String> field is Some and not empty
-//! if proxy.encrypt_method.as_ref().map_or(false, |s| !s.is_empty()) {
-//!     println!("Encryption method: {}", proxy.encrypt_method.as_ref().unwrap());
+//! if proxy.encrypt_method().as_ref().map_or(false, |s| !s.is_empty()) {
+//!     println!("Encryption method: {}", proxy.encrypt_method().as_ref().unwrap());
 //! }
 //!
 //! // Provide a default value
-//! let method = proxy.encrypt_method.as_deref().unwrap_or("none");
+//! let method = proxy.encrypt_method().unwrap_or("none");
 //! ```
 //!
 //! See the examples directory for more detailed usage examples.
 
 pub mod builder;
 pub mod ciphers;
+pub mod clash;
 pub mod configs;
 pub mod cron;
 pub mod extra_settings;

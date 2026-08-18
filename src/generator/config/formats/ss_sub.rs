@@ -46,12 +46,12 @@ pub fn proxy_to_ss_sub(
         let port = node.port;
 
         // Extract optional fields with safe defaults
-        let password = node.password.as_deref().unwrap_or("");
-        let method = node.encrypt_method.as_deref().unwrap_or("");
-        let mut plugin = node.plugin.as_deref().unwrap_or("").to_string();
-        let plugin_opts = node.plugin_option.as_deref().unwrap_or("");
-        let protocol = node.protocol.as_deref().unwrap_or("");
-        let obfs = node.obfs.as_deref().unwrap_or("");
+        let password = node.password().unwrap_or("");
+        let method = node.encrypt_method().unwrap_or("");
+        let mut plugin = node.plugin().unwrap_or("").to_string();
+        let plugin_opts = node.plugin_option().unwrap_or("");
+        let protocol = node.protocol().unwrap_or("");
+        let obfs = node.obfs().unwrap_or("");
 
         // Filter nodes based on type and compatibility
         match node.proxy_type {

@@ -130,11 +130,20 @@ pub fn parse_peers(data: &str, node: &mut Proxy) -> bool {
         return false;
     }
 
+    // Ensure the node carries WireGuard options before applying peer fields
+    if node.as_wireguard().is_none() {
+        node.combined_proxy = Some(
+            crate::models::proxy_node::combined::CombinedProxy::WireGuard(Default::default()),
+        );
+    }
+
     // Process key-value pairs
     for (key, val) in pairs {
         match key.as_str() {
             "public-key" => {
-                node.public_key = Some(val);
+                if let Some(wg) = node.as_wireguard_mut() {
+                    wg.public_key = Some(val);
+                }
             }
             "endpoint" => {
                 if let Some(idx) = val.rfind(':') {
@@ -145,10 +154,14 @@ pub fn parse_peers(data: &str, node: &mut Proxy) -> bool {
                 }
             }
             "client-id" => {
-                node.client_id = Some(val);
+                if let Some(wg) = node.as_wireguard_mut() {
+                    wg.client_id = Some(val);
+                }
             }
             "allowed-ips" => {
-                node.allowed_ips = val.trim_matches('"').to_string();
+                if let Some(wg) = node.as_wireguard_mut() {
+                    wg.allowed_ips = val.trim_matches('"').to_string();
+                }
             }
             _ => {}
         }

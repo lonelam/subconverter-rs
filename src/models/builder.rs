@@ -1,4 +1,23 @@
+use crate::models::proxy_node::combined::CombinedProxy;
+use crate::models::proxy_node::http::HttpProxy;
+use crate::models::proxy_node::hysteria::HysteriaProxy;
+use crate::models::proxy_node::hysteria2::Hysteria2Proxy;
+use crate::models::proxy_node::shadowsocks::ShadowsocksProxy;
+use crate::models::proxy_node::shadowsocksr::ShadowsocksRProxy;
+use crate::models::proxy_node::snell::SnellProxy;
+use crate::models::proxy_node::socks5::Socks5Proxy;
+use crate::models::proxy_node::trojan::TrojanProxy;
+use crate::models::proxy_node::vmess::VmessProxy;
+use crate::models::proxy_node::wireguard::WireGuardProxy;
 use crate::{Proxy, ProxyType};
+
+fn non_empty(value: &str) -> Option<String> {
+    if value.is_empty() {
+        None
+    } else {
+        Some(value.to_owned())
+    }
+}
 
 impl Proxy {
     pub fn common_construct(
@@ -61,45 +80,37 @@ impl Proxy {
             tls13,
             underlying_proxy,
         );
-        proxy.user_id = if id.is_empty() {
-            Some("00000000-0000-0000-0000-000000000000".to_owned())
+
+        let mut vmess = VmessProxy::default();
+        vmess.uuid = if id.is_empty() {
+            "00000000-0000-0000-0000-000000000000".to_owned()
         } else {
-            Some(id.to_owned())
+            id.to_owned()
         };
-        proxy.alter_id = aid;
-        proxy.encrypt_method = if cipher.is_empty() {
-            None
-        } else {
-            Some(cipher.to_owned())
-        };
-        proxy.transfer_protocol = Some(if net.is_empty() { "tcp" } else { net }.to_owned());
-        proxy.edge = if edge.is_empty() {
-            None
-        } else {
-            Some(edge.to_owned())
-        };
-        proxy.server_name = if sni.is_empty() {
-            None
-        } else {
-            Some(sni.to_owned())
-        };
+        vmess.alter_id = aid;
+        vmess.cipher = non_empty(cipher);
+        vmess.network = Some(if net.is_empty() { "tcp" } else { net }.to_owned());
+        vmess.edge = non_empty(edge);
+        vmess.fake_type = Some(typ.to_owned());
+
+        proxy.sni = non_empty(sni);
         proxy.tls_secure = tls == "tls";
 
         if net == "quic" {
-            proxy.quic_secure = Some(host.to_owned());
-            proxy.quic_secret = Some(path.to_owned());
+            vmess.quic_secure = Some(host.to_owned());
+            vmess.quic_secret = Some(path.to_owned());
         } else {
-            proxy.host = Some(
+            vmess.host = Some(
                 if host.is_empty() && !add.parse::<std::net::IpAddr>().is_ok() {
                     add.to_owned()
                 } else {
                     host.trim().to_owned()
                 },
             );
-            proxy.path = Some(if path.is_empty() { "/" } else { path.trim() }.to_owned());
+            vmess.path = Some(if path.is_empty() { "/" } else { path.trim() }.to_owned());
         }
-        proxy.fake_type = Some(typ.to_owned());
 
+        proxy.combined_proxy = Some(CombinedProxy::VMess(vmess));
         proxy
     }
 
@@ -131,12 +142,15 @@ impl Proxy {
             None,
             underlying_proxy,
         );
-        proxy.password = Some(password.to_owned());
-        proxy.encrypt_method = Some(method.to_owned());
-        proxy.protocol = Some(protocol.to_owned());
-        proxy.protocol_param = Some(proto_param.to_owned());
-        proxy.obfs = Some(obfs.to_owned());
-        proxy.obfs_param = Some(obfs_param.to_owned());
+
+        proxy.combined_proxy = Some(CombinedProxy::ShadowsocksR(ShadowsocksRProxy {
+            password: password.to_owned(),
+            cipher: method.to_owned(),
+            protocol: Some(protocol.to_owned()),
+            protocol_param: Some(proto_param.to_owned()),
+            obfs: Some(obfs.to_owned()),
+            obfs_param: Some(obfs_param.to_owned()),
+        }));
 
         proxy
     }
@@ -169,38 +183,14 @@ impl Proxy {
             underlying_proxy,
         );
 
-        // Set up the combined proxy with ShadowsocksProxy
-        let ss_proxy = crate::models::proxy_node::shadowsocks::ShadowsocksProxy {
-            server: server.to_string(),
-            port,
-            password: password.to_string(),
-            cipher: method.to_string(),
-            udp,
-            tfo,
-            skip_cert_verify: scv,
-            plugin: if plugin.is_empty() {
-                None
-            } else {
-                Some(plugin.to_string())
-            },
-            plugin_opts: if plugin_opts.is_empty() {
-                None
-            } else {
-                Some(plugin_opts.to_string())
-            },
+        proxy.combined_proxy = Some(CombinedProxy::Shadowsocks(ShadowsocksProxy {
+            password: password.to_owned(),
+            cipher: method.to_owned(),
+            plugin: non_empty(plugin),
+            plugin_opts: non_empty(plugin_opts),
             udp_over_tcp: None,
             udp_over_tcp_version: None,
-            client_fingerprint: None,
-        };
-
-        proxy.combined_proxy =
-            Some(crate::models::proxy_node::combined::CombinedProxy::Shadowsocks(ss_proxy));
-
-        // Keep the old fields for backward compatibility
-        proxy.password = Some(password.to_owned());
-        proxy.encrypt_method = Some(method.to_owned());
-        proxy.plugin = Some(plugin.to_owned());
-        proxy.plugin_option = Some(plugin_opts.to_owned());
+        }));
 
         proxy
     }
@@ -229,8 +219,10 @@ impl Proxy {
             None,
             underlying_proxy,
         );
-        proxy.username = Some(username.to_owned());
-        proxy.password = Some(password.to_owned());
+        proxy.combined_proxy = Some(CombinedProxy::Socks5(Socks5Proxy {
+            username: Some(username.to_owned()),
+            password: Some(password.to_owned()),
+        }));
 
         proxy
     }
@@ -264,8 +256,10 @@ impl Proxy {
             tls13,
             underlying_proxy,
         );
-        proxy.username = Some(username.to_owned());
-        proxy.password = Some(password.to_owned());
+        proxy.combined_proxy = Some(CombinedProxy::Http(HttpProxy {
+            username: Some(username.to_owned()),
+            password: Some(password.to_owned()),
+        }));
         proxy.tls_secure = tls;
 
         proxy
@@ -294,10 +288,12 @@ impl Proxy {
             remark,
             hostname,
             port,
-            password: Some(password),
-            transfer_protocol: network,
-            host,
-            path,
+            combined_proxy: Some(CombinedProxy::Trojan(TrojanProxy {
+                password,
+                network,
+                host,
+                path,
+            })),
             sni,
             tls_secure,
             udp,
@@ -329,10 +325,12 @@ impl Proxy {
             remark,
             hostname,
             port,
-            password: Some(password),
-            obfs: Some(obfs),
-            host: Some(host),
-            snell_version: version,
+            combined_proxy: Some(CombinedProxy::Snell(SnellProxy {
+                psk: password,
+                version,
+                obfs: Some(obfs),
+                obfs_host: Some(host),
+            })),
             udp,
             tcp_fast_open: tfo,
             allow_insecure,
@@ -359,27 +357,25 @@ impl Proxy {
         udp: Option<bool>,
         underlying_proxy: Option<String>,
     ) -> Self {
-        let mut dns_set = std::collections::HashSet::new();
-        for dns in dns_servers {
-            dns_set.insert(dns);
-        }
-
         Proxy {
             proxy_type: ProxyType::WireGuard,
             group,
             remark,
             hostname,
             port,
-            self_ip: Some(self_ip),
-            self_ipv6: Some(self_ipv6),
-            private_key: Some(private_key),
-            public_key: Some(public_key),
-            pre_shared_key: Some(preshared_key),
-            dns_servers: dns_set,
-            mtu: mtu.unwrap_or(0),
-            keep_alive: keep_alive.unwrap_or(0),
-            test_url: Some(test_url),
-            client_id: Some(client_id),
+            combined_proxy: Some(CombinedProxy::WireGuard(WireGuardProxy {
+                self_ip: Some(self_ip),
+                self_ipv6: Some(self_ipv6),
+                private_key: Some(private_key),
+                public_key: Some(public_key),
+                pre_shared_key: Some(preshared_key),
+                dns_servers,
+                mtu: mtu.unwrap_or(0),
+                allowed_ips: String::from("0.0.0.0/0, ::/0"),
+                keep_alive: keep_alive.unwrap_or(0),
+                test_url: Some(test_url),
+                client_id: Some(client_id),
+            })),
             udp,
             underlying_proxy,
             ..Default::default()
@@ -418,18 +414,25 @@ impl Proxy {
             remark,
             hostname,
             port,
-            ports,
-            up_speed: up_speed.unwrap_or(0),
-            down_speed: down_speed.unwrap_or(0),
-            password: Some(password),
-            obfs: obfs,
-            obfs_param: obfs_param,
-            sni: sni,
-            fingerprint: fingerprint,
+            combined_proxy: Some(CombinedProxy::Hysteria2(Hysteria2Proxy {
+                password,
+                ports,
+                obfs,
+                obfs_password: obfs_param,
+                up_speed: up_speed.unwrap_or(0),
+                down_speed: down_speed.unwrap_or(0),
+                ca,
+                ca_str,
+                cwnd: cwnd.unwrap_or(0),
+                udp_mtu: 0,
+                recv_window_conn: 0,
+                recv_window: 0,
+                disable_mtu_discovery: None,
+                hop_interval: 0,
+            })),
+            sni,
+            fingerprint,
             alpn: alpn_set,
-            ca: ca,
-            ca_str: ca_str,
-            cwnd: cwnd.unwrap_or(0),
             tcp_fast_open,
             allow_insecure,
             underlying_proxy,
@@ -466,6 +469,9 @@ impl Proxy {
         for proto in alpn {
             alpn_set.insert(proto);
         }
+        // The legacy parameter carried the obfs string in `obfs` and an
+        // optional parameter in `obfs_param`; keep the first non-empty one.
+        let _ = obfs_param;
 
         Proxy {
             proxy_type: ProxyType::Hysteria,
@@ -473,21 +479,23 @@ impl Proxy {
             remark,
             hostname,
             port,
-            ports: Some(ports),
-            protocol: Some(protocol),
-            obfs_param: Some(obfs_param),
-            up_speed: up_speed.unwrap_or(0),
-            down_speed: down_speed.unwrap_or(0),
-            auth_str: Some(auth_str),
-            obfs: Some(obfs),
+            combined_proxy: Some(CombinedProxy::Hysteria(HysteriaProxy {
+                ports: Some(ports),
+                protocol: Some(protocol),
+                obfs: Some(obfs),
+                up_speed: up_speed.unwrap_or(0),
+                down_speed: down_speed.unwrap_or(0),
+                auth: None,
+                auth_str: Some(auth_str),
+                ca: Some(ca),
+                ca_str: Some(ca_str),
+                recv_window_conn: recv_window_conn.unwrap_or(0),
+                recv_window: recv_window.unwrap_or(0),
+                disable_mtu_discovery,
+                hop_interval: hop_interval.unwrap_or(0),
+            })),
             sni: Some(sni),
             fingerprint: Some(fingerprint),
-            ca: Some(ca),
-            ca_str: Some(ca_str),
-            recv_window_conn: recv_window_conn.unwrap_or(0),
-            recv_window: recv_window.unwrap_or(0),
-            disable_mtu_discovery,
-            hop_interval: hop_interval.unwrap_or(0),
             alpn: alpn_set,
             tcp_fast_open,
             allow_insecure,

@@ -80,13 +80,12 @@ pub fn proxy_to_ssd(
             ProxyType::Shadowsocks => {
                 // Handle plugin conversion
                 let plugin = node
-                    .plugin
-                    .as_ref()
+                    .plugin()
                     .map(|p| {
                         if p == "obfs-local" {
                             "simple-obfs".to_string()
                         } else {
-                            p.clone()
+                            p.to_string()
                         }
                     })
                     .unwrap_or_default();
@@ -94,10 +93,10 @@ pub fn proxy_to_ssd(
                 let server = json!({
                     "server": node.hostname,
                     "port": node.port,
-                    "encryption": node.encrypt_method,
-                    "password": node.password,
+                    "encryption": node.encrypt_method(),
+                    "password": node.password(),
                     "plugin": plugin,
-                    "plugin_options": node.plugin_option.clone().unwrap_or_default(),
+                    "plugin_options": node.plugin_option().map(|s| s.to_string()).unwrap_or_default(),
                     "remarks": node.remark,
                     "id": index
                 });
@@ -115,17 +114,16 @@ pub fn proxy_to_ssd(
 
                 // Only convert if method is supported and using basic settings
                 if node
-                    .encrypt_method
-                    .as_ref()
-                    .map_or(false, |m| ss_ciphers.contains(&m.as_str()))
-                    && node.protocol.as_ref().map_or(false, |p| p == "origin")
-                    && node.obfs.as_ref().map_or(false, |o| o == "plain")
+                    .encrypt_method()
+                    .map_or(false, |m| ss_ciphers.contains(&m))
+                    && node.protocol().map_or(false, |p| p == "origin")
+                    && node.obfs().map_or(false, |o| o == "plain")
                 {
                     let server = json!({
                         "server": node.hostname,
                         "port": node.port,
-                        "encryption": node.encrypt_method,
-                        "password": node.password,
+                        "encryption": node.encrypt_method(),
+                        "password": node.password(),
                         "remarks": node.remark,
                         "id": index
                     });

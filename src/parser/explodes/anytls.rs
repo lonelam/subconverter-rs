@@ -65,11 +65,6 @@ pub fn explode_anytls(link: &str, node: &mut Proxy) -> bool {
 
     let mut anytls_proxy = AnyTlsProxy::default();
     anytls_proxy.password = password;
-    anytls_proxy.sni = sni;
-    anytls_proxy.skip_cert_verify = insecure;
-    anytls_proxy.client_fingerprint = client_fingerprint;
-    anytls_proxy.udp = udp;
-    anytls_proxy.alpn = alpn;
 
     *node = Proxy::default();
     node.proxy_type = ProxyType::AnyTls;
@@ -79,6 +74,12 @@ pub fn explode_anytls(link: &str, node: &mut Proxy) -> bool {
     node.port = port;
     node.udp = udp;
     node.allow_insecure = insecure;
+    node.tls_secure = true;
+    node.sni = sni;
+    node.client_fingerprint = client_fingerprint;
+    if let Some(alpn_values) = alpn {
+        node.alpn = alpn_values;
+    }
     node.combined_proxy = Some(CombinedProxy::AnyTls(anytls_proxy));
 
     true
@@ -107,11 +108,10 @@ mod tests {
             _ => panic!("expected anytls combined proxy"),
         };
         assert_eq!(anytls.password, "secret-pass");
-        assert_eq!(anytls.sni.as_deref(), Some("example.org"));
-        assert_eq!(anytls.client_fingerprint.as_deref(), Some("chrome"));
-        let alpn = anytls.alpn.as_ref().expect("alpn must be set");
-        assert!(alpn.contains("h2"));
-        assert!(alpn.contains("http/1.1"));
+        assert_eq!(node.sni.as_deref(), Some("example.org"));
+        assert_eq!(node.client_fingerprint.as_deref(), Some("chrome"));
+        assert!(node.alpn.contains("h2"));
+        assert!(node.alpn.contains("http/1.1"));
     }
 
     #[test]

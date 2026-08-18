@@ -119,19 +119,19 @@ async fn proxy_to_quanx_internal(
         // Extract node properties for easier access
         let hostname = &node.hostname;
         let port = node.port.to_string();
-        let username = node.username.as_deref().unwrap_or("");
-        let password = node.password.as_deref().unwrap_or("");
-        let method = node.encrypt_method.as_deref().unwrap_or("");
-        let id = node.user_id.as_deref().unwrap_or("");
-        let transproto = node.transfer_protocol.as_deref().unwrap_or("");
-        let host = node.host.as_deref().unwrap_or("");
-        let path = node.path.as_deref().unwrap_or("");
-        let plugin = node.plugin.as_deref().unwrap_or("");
-        let pluginopts = node.plugin_option.as_deref().unwrap_or("");
-        let protocol = node.protocol.as_deref().unwrap_or("");
-        let protoparam = node.protocol_param.as_deref().unwrap_or("");
-        let obfs = node.obfs.as_deref().unwrap_or("");
-        let obfsparam = node.obfs_param.as_deref().unwrap_or("");
+        let username = node.username().unwrap_or("");
+        let password = node.password().unwrap_or("");
+        let method = node.encrypt_method().unwrap_or("");
+        let id = node.user_id().unwrap_or("");
+        let transproto = node.transfer_protocol().unwrap_or("");
+        let host = node.host().unwrap_or("");
+        let path = node.path().unwrap_or("");
+        let plugin = node.plugin().unwrap_or("");
+        let pluginopts = node.plugin_option().unwrap_or("");
+        let protocol = node.protocol().unwrap_or("");
+        let protoparam = node.protocol_param().unwrap_or("");
+        let obfs = node.obfs().unwrap_or("");
+        let obfsparam = node.obfs_param().unwrap_or("");
         let tls_secure = node.tls_secure;
 
         // Get option values with defaults from ext
@@ -161,7 +161,7 @@ async fn proxy_to_quanx_internal(
                     hostname, port, actual_method, id
                 );
 
-                if node.alter_id == 0 {
+                if node.alter_id() == 0 {
                     // AEAD is enabled when alter_id is 0
                 } else {
                     _proxy_str.push_str(", aead=false");

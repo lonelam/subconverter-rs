@@ -217,23 +217,23 @@ pub fn proxy_to_clash_yaml(
         // Check if this proxy type should be skipped
         let should_skip = match node.proxy_type {
             // Skip Snell v4+ if exists - exactly matching C++ behavior
-            ProxyType::Snell if node.snell_version >= 4 => true,
+            ProxyType::Snell if node.snell_version() >= 4 => true,
 
             // Skip if not using ClashR or if using deprecated features with ShadowsocksR
             ProxyType::ShadowsocksR if !clash_r && ext.filter_deprecated => true,
 
             // Skip chacha20 encryption if filter_deprecated is enabled
             ProxyType::Shadowsocks
-                if ext.filter_deprecated && node.encrypt_method.as_deref() == Some("chacha20") =>
+                if ext.filter_deprecated && node.encrypt_method() == Some("chacha20") =>
             {
                 true
             }
 
             // Skip ShadowsocksR with deprecated features if filter_deprecated is enabled
             ProxyType::ShadowsocksR if ext.filter_deprecated => {
-                let encrypt_method = node.encrypt_method.as_deref().unwrap_or("");
-                let protocol = node.protocol.as_deref().unwrap_or("");
-                let obfs = node.obfs.as_deref().unwrap_or("");
+                let encrypt_method = node.encrypt_method().unwrap_or("");
+                let protocol = node.protocol().unwrap_or("");
+                let obfs = node.obfs().unwrap_or("");
 
                 !CLASH_SSR_CIPHERS.contains(encrypt_method)
                     || !CLASHR_PROTOCOLS.contains(protocol)

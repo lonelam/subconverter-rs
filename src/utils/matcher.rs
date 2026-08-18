@@ -102,7 +102,7 @@ pub fn apply_matcher(rule: &str, real_rule: &mut String, node: &Proxy) -> bool {
         if let Some(captures) = PROTOCOL_REGEX.captures(rule) {
             let target = captures.get(1).map_or("", |m| m.as_str());
             *real_rule = captures.get(2).map_or("", |m| m.as_str()).to_string();
-            let protocol = match &node.protocol {
+            let protocol = match node.protocol() {
                 Some(proto) => proto,
                 None => return false,
             };
@@ -487,7 +487,7 @@ pub fn apply_compiled_rule(compiled_rule: &CompiledRule, node: &Proxy) -> bool {
             }
         }
         CompiledMatcher::Server(re) => re.is_match(&node.hostname),
-        CompiledMatcher::Protocol(re) => node.protocol.as_ref().map_or(false, |p| re.is_match(p)),
+        CompiledMatcher::Protocol(re) => node.protocol().map_or(false, |p| re.is_match(p)),
         CompiledMatcher::UdpSupport(re) => {
             let udp_str = match node.udp {
                 Some(true) => "yes",
@@ -605,7 +605,14 @@ mod tests {
             hostname: "example.com".to_string(),
             port: 8080,
             proxy_type: ProxyType::Shadowsocks,
-            protocol: Some("origin".to_string()),
+            combined_proxy: Some(
+                crate::models::proxy_node::combined::CombinedProxy::ShadowsocksR(
+                    crate::models::proxy_node::shadowsocksr::ShadowsocksRProxy {
+                        protocol: Some("origin".to_string()),
+                        ..Default::default()
+                    },
+                ),
+            ),
             udp: Some(true),
             tls_secure: true,
             tls13: Some(true),
@@ -829,7 +836,14 @@ mod tests {
             hostname: hostname.to_string(),
             port,
             proxy_type: ptype,
-            protocol: protocol.map(|s| s.to_string()),
+            combined_proxy: protocol.map(|p| {
+                crate::models::proxy_node::combined::CombinedProxy::ShadowsocksR(
+                    crate::models::proxy_node::shadowsocksr::ShadowsocksRProxy {
+                        protocol: Some(p.to_string()),
+                        ..Default::default()
+                    },
+                )
+            }),
             udp,
             tls_secure: tls,
             allow_insecure: insecure,

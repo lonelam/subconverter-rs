@@ -1,4 +1,13 @@
 pub mod anytls;
 pub mod combined;
+pub mod http;
+pub mod hysteria;
+pub mod hysteria2;
 pub mod shadowsocks;
+pub mod shadowsocksr;
+pub mod snell;
+pub mod socks5;
+pub mod trojan;
 pub mod vless;
+pub mod vmess;
+pub mod wireguard;

@@ -21,8 +21,10 @@ use log::error;
 /// * Peer configuration string
 fn generate_peer(node: &Proxy, client_id_as_reserved: bool) -> String {
     let mut peer = String::new();
+    let default_wg = Default::default();
+    let wg = node.as_wireguard().unwrap_or(&default_wg);
 
-    if let Some(public_key) = &node.public_key {
+    if let Some(public_key) = &wg.public_key {
         peer.push_str("public-key = ");
         peer.push_str(public_key);
         peer.push_str(", ");
@@ -33,12 +35,12 @@ fn generate_peer(node: &Proxy, client_id_as_reserved: bool) -> String {
     peer.push_str(":");
     peer.push_str(&node.port.to_string());
 
-    if !node.allowed_ips.is_empty() {
+    if !wg.allowed_ips.is_empty() {
         peer.push_str(", allowed-ips = ");
-        peer.push_str(&node.allowed_ips);
+        peer.push_str(&wg.allowed_ips);
     }
 
-    if let Some(client_id) = &node.client_id {
+    if let Some(client_id) = &wg.client_id {
         if !client_id.is_empty() {
             if client_id_as_reserved {
                 peer.push_str(", reserved = ");
@@ -130,20 +132,20 @@ pub async fn proxy_to_surge(
         // Extract node properties for easier access
         let hostname = &node.hostname;
         let port = node.port.to_string();
-        let username = node.username.as_deref().unwrap_or("");
-        let password = node.password.as_deref().unwrap_or("");
-        let method = node.encrypt_method.as_deref().unwrap_or("");
-        let id = node.user_id.as_deref().unwrap_or("");
-        let transproto = node.transfer_protocol.as_deref().unwrap_or("");
-        let host = node.host.as_deref().unwrap_or("");
-        let edge = node.edge.as_deref().unwrap_or("");
-        let path = node.path.as_deref().unwrap_or("");
-        let protocol = node.protocol.as_deref().unwrap_or("");
-        let protoparam = node.protocol_param.as_deref().unwrap_or("");
-        let obfs = node.obfs.as_deref().unwrap_or("");
-        let obfsparam = node.obfs_param.as_deref().unwrap_or("");
-        let plugin = node.plugin.as_deref().unwrap_or("");
-        let pluginopts = node.plugin_option.as_deref().unwrap_or("");
+        let username = node.username().unwrap_or("");
+        let password = node.password().unwrap_or("");
+        let method = node.encrypt_method().unwrap_or("");
+        let id = node.user_id().unwrap_or("");
+        let transproto = node.transfer_protocol().unwrap_or("");
+        let host = node.host().unwrap_or("");
+        let edge = node.edge().unwrap_or("");
+        let path = node.path().unwrap_or("");
+        let protocol = node.protocol().unwrap_or("");
+        let protoparam = node.protocol_param().unwrap_or("");
+        let obfs = node.obfs().unwrap_or("");
+        let obfsparam = node.obfs_param().unwrap_or("");
+        let plugin = node.plugin().unwrap_or("");
+        let pluginopts = node.plugin_option().unwrap_or("");
         let underlying_proxy = node.underlying_proxy.as_deref().unwrap_or("");
         let tls_secure = node.tls_secure;
 
@@ -199,7 +201,7 @@ pub async fn proxy_to_surge(
                     port,
                     id,
                     if tls_secure { "true" } else { "false" },
-                    if node.alter_id == 0 { "true" } else { "false" }
+                    if node.alter_id() == 0 { "true" } else { "false" }
                 );
 
                 if tls_secure && !tls13.is_undef() {
@@ -396,8 +398,8 @@ pub async fn proxy_to_surge(
 
                 _proxy = format!("trojan, {}, {}, password={}", hostname, port, password);
 
-                if node.snell_version != 0 {
-                    _proxy.push_str(&format!(", version={}", node.snell_version));
+                if node.snell_version() != 0 {
+                    _proxy.push_str(&format!(", version={}", node.snell_version()));
                 }
 
                 if !host.is_empty() {
@@ -426,8 +428,8 @@ pub async fn proxy_to_surge(
                     }
                 }
 
-                if node.snell_version != 0 {
-                    _proxy.push_str(&format!(", version={}", node.snell_version));
+                if node.snell_version() != 0 {
+                    _proxy.push_str(&format!(", version={}", node.snell_version()));
                 }
             }
             ProxyType::WireGuard => {
@@ -440,48 +442,51 @@ pub async fn proxy_to_surge(
                 _real_section = format!("WireGuard {}", _section);
                 _proxy = format!("wireguard, section-name={}", _section);
 
-                if let Some(test_url) = &node.test_url {
+                let default_wg = Default::default();
+                let wg = node.as_wireguard().unwrap_or(&default_wg);
+
+                if let Some(test_url) = &wg.test_url {
                     if !test_url.is_empty() {
                         _proxy.push_str(&format!(", test-url={}", test_url));
                     }
                 }
 
-                if let Some(private_key) = &node.private_key {
+                if let Some(private_key) = &wg.private_key {
                     ini.set(&_real_section, "private-key", private_key)
                         .unwrap_or(());
                 }
 
-                if let Some(self_ip) = &node.self_ip {
+                if let Some(self_ip) = &wg.self_ip {
                     ini.set(&_real_section, "self-ip", self_ip).unwrap_or(());
                 }
 
-                if let Some(self_ipv6) = &node.self_ipv6 {
+                if let Some(self_ipv6) = &wg.self_ipv6 {
                     if !self_ipv6.is_empty() {
                         ini.set(&_real_section, "self-ip-v6", self_ipv6)
                             .unwrap_or(());
                     }
                 }
 
-                if let Some(pre_shared_key) = &node.pre_shared_key {
+                if let Some(pre_shared_key) = &wg.pre_shared_key {
                     if !pre_shared_key.is_empty() {
                         ini.set(&_real_section, "preshared-key", pre_shared_key)
                             .unwrap_or(());
                     }
                 }
 
-                if !node.dns_servers.is_empty() {
-                    let dns_list: Vec<String> = node.dns_servers.iter().cloned().collect();
+                if !wg.dns_servers.is_empty() {
+                    let dns_list: Vec<String> = wg.dns_servers.clone();
                     ini.set(&_real_section, "dns-server", &join(&dns_list, ","))
                         .unwrap_or(());
                 }
 
-                if node.mtu > 0 {
-                    ini.set(&_real_section, "mtu", &node.mtu.to_string())
+                if wg.mtu > 0 {
+                    ini.set(&_real_section, "mtu", &wg.mtu.to_string())
                         .unwrap_or(());
                 }
 
-                if node.keep_alive > 0 {
-                    ini.set(&_real_section, "keepalive", &node.keep_alive.to_string())
+                if wg.keep_alive > 0 {
+                    ini.set(&_real_section, "keepalive", &wg.keep_alive.to_string())
                         .unwrap_or(());
                 }
 
@@ -499,8 +504,8 @@ pub async fn proxy_to_surge(
 
                 _proxy = format!("hysteria, {}, {}, password={}", hostname, port, password);
 
-                if node.down_speed > 0 {
-                    _proxy.push_str(&format!(", download-bandwidth={}", node.down_speed));
+                if node.down_speed() > 0 {
+                    _proxy.push_str(&format!(", download-bandwidth={}", node.down_speed()));
                 }
 
                 if scv.is_some() {
