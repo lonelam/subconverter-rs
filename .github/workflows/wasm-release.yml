@@ -81,6 +81,7 @@ jobs:
             jq '.name = "subconverter-wasm"' | \
             jq '.dependencies["@vercel/kv"] = "^3.0.0"' | \
             jq '.dependencies["@netlify/blobs"] = "^8.1.2"' | \
+            jq '.repository = {"type": "git", "url": "git+https://github.com/lonelam/subconverter-rs.git"}' | \
             jq ".version = \"$VERSION\"" > tmp.json && mv tmp.json pkg/package.json
 
       - name: Setup Node.js
