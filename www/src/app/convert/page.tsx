@@ -222,7 +222,7 @@ export default function ConvertPage() {
 
         // Add all set fields to the URL params
         Object.entries(formData).forEach(([key, value]) => {
-            if (value !== undefined && value !== null && setFields.has(key)) {
+            if (value !== undefined && value !== null && value !== '' && setFields.has(key)) {
                 if (typeof value === 'boolean') {
                     // For boolean values, just include the parameter name if true
                     if (value) {
@@ -286,6 +286,23 @@ export default function ConvertPage() {
                                 {SUPPORTED_TARGETS.map(t => <option key={t} value={t}>{t}</option>)}
                             </select>
                         </div>
+                        {(formData.target === 'clash' || formData.target === 'clashr') && (
+                            <div>
+                                <FieldLabel htmlFor="flavor" fieldName="flavor">{t('clashFlavorLabel')}</FieldLabel>
+                                <select
+                                    id="flavor"
+                                    name="flavor"
+                                    value={formData.flavor || ''}
+                                    onChange={handleInputChange}
+                                    className={getInputClass("flavor")}
+                                >
+                                    <option value="">mihomo / Clash.Meta</option>
+                                    <option value="premium">Clash Premium</option>
+                                    <option value="stash">Stash</option>
+                                </select>
+                                <p className="mt-1 text-xs text-gray-500">{t('clashFlavorHelp')}</p>
+                            </div>
+                        )}
                         <div>
                             <FieldLabel htmlFor="url" fieldName="url" required>{t('subscriptionUrlLabel')}</FieldLabel>
                             <textarea

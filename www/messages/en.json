@@ -259,6 +259,8 @@
         "title": "Advanced Subscription Converter",
         "requiredSectionTitle": "Required Parameters",
         "targetFormatLabel": "Target Format",
+        "clashFlavorLabel": "Clash Core Flavor",
+        "clashFlavorHelp": "mihomo supports every protocol; Premium and Stash automatically drop protocols and fields that core cannot load.",
         "subscriptionUrlLabel": "Subscription URL(s)",
         "subscriptionUrlPlaceholder": "Enter one or more URLs, separated by |",
         "subscriptionUrlHelp": "Separate multiple URLs with a pipe (|) or newline.",

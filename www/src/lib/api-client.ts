@@ -23,6 +23,7 @@ export interface ErrorData {
  */
 export interface SubconverterFormParams {
     target: string;
+    flavor?: string;
     ver?: number;
     new_name?: boolean;
     url: string;

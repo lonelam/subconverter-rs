@@ -13,31 +13,31 @@
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",
     "@netlify/blobs": "^8.2.0",
-    "@netlify/functions": "^3.1.2",
+    "@netlify/functions": "^3.1.10",
     "@types/js-yaml": "^4.0.9",
     "@vercel/kv": "^3.0.0",
-    "autoprefixer": "^10.4.21",
-    "js-yaml": "^4.1.0",
+    "autoprefixer": "^10.5.4",
+    "js-yaml": "^4.3.1",
     "monaco-editor": "^0.52.2",
-    "next": "15.3.0",
-    "next-intl": "^4.0.2",
-    "postcss": "^8.5.3",
-    "react": "^19.1.0",
-    "react-dom": "^19.1.0",
+    "next": "^15.5.23",
+    "next-intl": "^4.13.7",
+    "postcss": "^8.5.26",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
     "subconverter-wasm": "0.2.34"
   },
   "devDependencies": {
-    "@eslint/eslintrc": "^3.3.1",
-    "@netlify/plugin-nextjs": "^5.10.6",
-    "@tailwindcss/postcss": "^4.1.4",
-    "@types/node": "^22.14.1",
-    "@types/react": "^19.1.2",
-    "@types/react-dom": "^19.1.2",
+    "@eslint/eslintrc": "^3.3.6",
+    "@netlify/plugin-nextjs": "^5.15.13",
+    "@tailwindcss/postcss": "^4.3.3",
+    "@types/node": "^22.20.1",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
     "@types/webpack": "^5.28.5",
-    "eslint": "^9.24.0",
-    "eslint-config-next": "15.3.0",
-    "tailwindcss": "^4.1.4",
-    "typescript": "^5.8.3",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "^15.5.23",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^5.9.3",
     "url": "^0.11.4"
   },
   "engines": {
@@ -47,6 +47,10 @@
     "onlyBuiltDependencies": [
       "esbuild",
       "sharp"
-    ]
+    ],
+    "overrides": {
+      "postcss": ">=8.5.23",
+      "sharp": ">=0.35.0"
+    }
   }
 }

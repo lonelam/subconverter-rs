@@ -262,6 +262,8 @@
         "title": "高级订阅转换器",
         "requiredSectionTitle": "必要参数",
         "targetFormatLabel": "目标格式",
+        "clashFlavorLabel": "Clash 内核流派",
+        "clashFlavorHelp": "mihomo 支持全部协议；Premium 与 Stash 会自动剔除对应内核无法加载的协议和字段。",
         "subscriptionUrlLabel": "订阅链接",
         "subscriptionUrlPlaceholder": "输入一个或多个URL，用 | 分隔",
         "subscriptionUrlHelp": "使用竖线 (|) 或换行符分隔多个URL。",
