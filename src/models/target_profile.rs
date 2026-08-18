@@ -22,6 +22,7 @@ pub enum ClashFlavor {
 
 impl ClashFlavor {
     /// Parse a `flavor=` query value. Unknown values fall back to mihomo.
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(value: &str) -> Self {
         match value.to_lowercase().as_str() {
             "premium" | "original" | "classic" | "clash" => ClashFlavor::Premium,

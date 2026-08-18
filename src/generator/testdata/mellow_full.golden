@@ -1,6 +1,6 @@
 [Endpoint]
-ss-plain, ss, ss://YWVzLTI1Ni1nY206cGFzczp3b3JkPQ/ss.example.com:8388=
-vmess-ws, vmess1, vmess1://b445361a-abcf-4a4a-a97a-0bf4136d6ddc@vmess.example.com:443/ws?network=ws&ws.host=host.example.com&tls=true&tls.servername=host.example.com=
-http-node, builtin, http, address=http.example.com, port=8080, user=httpuser, pass=httppass=
-socks-node, builtin, socks, address=socks.example.com, port=1080, user=sockuser, pass=sockpass=
+ss-plain, ss, ss://YWVzLTI1Ni1nY206cGFzczp3b3JkPQ/ss.example.com:8388
+vmess-ws, vmess1, vmess1://b445361a-abcf-4a4a-a97a-0bf4136d6ddc@vmess.example.com:443/ws?network=ws&ws.host=host.example.com&tls=true&tls.servername=host.example.com
+http-node, builtin, http, address=http.example.com, port=8080, user=httpuser, pass=httppass
+socks-node, builtin, socks, address=socks.example.com, port=1080, user=sockuser, pass=sockpass
 

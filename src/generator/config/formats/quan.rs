@@ -314,7 +314,7 @@ async fn proxy_to_quan_internal(
         }
 
         // Add to INI
-        ini.set("{NONAME}", &proxy_str, "").unwrap_or(());
+        ini.set_current("{NONAME}", &proxy_str).unwrap_or(());
         remarks_list.push(node.remark.clone());
         nodelist.push(node.clone());
     }
@@ -440,7 +440,7 @@ async fn proxy_to_quan_internal(
 
         // Add group to INI if not empty
         if !single_group.is_empty() {
-            ini.set("{NONAME}", &base64_encode(&single_group), "")
+            ini.set_current("{NONAME}", &base64_encode(&single_group))
                 .unwrap_or(());
         }
     }

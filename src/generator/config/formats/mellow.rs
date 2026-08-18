@@ -222,7 +222,7 @@ async fn proxy_to_mellow_internal(
         }
 
         // Add to INI
-        ini.set("{NONAME}", &_proxy_str, "").unwrap_or(());
+        ini.set_current("{NONAME}", &_proxy_str).unwrap_or(());
         remarks_list.push(node.remark.clone());
         nodelist.push(node.clone());
     }
@@ -262,7 +262,7 @@ async fn proxy_to_mellow_internal(
                 );
 
                 // Add to INI
-                ini.set("{NONAME}", &proxy_str, "").unwrap_or(());
+                ini.set_current("{NONAME}", &proxy_str).unwrap_or(());
             }
             _ => continue,
         }

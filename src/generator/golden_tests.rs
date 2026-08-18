@@ -130,6 +130,34 @@ fn generate_all() -> Vec<(&'static str, String)> {
         let mut nodes = fixture_nodes();
         let mut ext = ext_nodelist();
         outputs.push((
+            "quanx_nodelist",
+            block_on(proxy_to_quanx(
+                &mut nodes,
+                "",
+                &mut Vec::new(),
+                &Vec::new(),
+                &mut ext,
+            )),
+        ));
+    }
+    {
+        let mut nodes = fixture_nodes();
+        let mut ext = ext_nodelist();
+        outputs.push((
+            "quan_nodelist",
+            block_on(proxy_to_quan(
+                &mut nodes,
+                "",
+                &mut Vec::new(),
+                &Vec::new(),
+                &mut ext,
+            )),
+        ));
+    }
+    {
+        let mut nodes = fixture_nodes();
+        let mut ext = ext_nodelist();
+        outputs.push((
             "loon_nodelist",
             block_on(proxy_to_loon(
                 &mut nodes,

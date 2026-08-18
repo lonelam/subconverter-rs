@@ -146,6 +146,7 @@ http://127.0.0.1:25500/sub?target=%TARGET%&url=%URL%&config=%CONFIG%
 | `target`  | Yes      | `surge&ver=4`               | Target configuration type         | ✅     |
 | `url`     | Yes      | `https%3A%2F%2Fwww.xxx.com` | Subscription link (URLEncoded)    | ✅     |
 | `config`  | No       | `https%3A%2F%2Fwww.xxx.com` | External configuration (URLEncoded) | ✅     |
+| `flavor`  | No       | `premium` / `stash`         | Clash flavor to target. Defaults to mihomo (full feature set); `premium` and `stash` drop protocols and fields the client cannot load (e.g. VLESS/Hysteria2 on Premium, uTLS fingerprints on Stash) | ✅     |
 
 ### Simple Conversion Examples
 

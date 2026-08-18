@@ -380,7 +380,7 @@ async fn proxy_to_quanx_internal(
         _proxy_str.push_str(&format!(", tag={}", node.remark));
 
         // Add to INI
-        ini.set("{NONAME}", &_proxy_str, "").unwrap_or(());
+        ini.set_current("{NONAME}", &_proxy_str).unwrap_or(());
         remarks_list.push(node.remark.clone());
         nodelist.push(node.clone());
     }
@@ -477,7 +477,7 @@ async fn proxy_to_quanx_internal(
         }
 
         // Add to INI
-        ini.set("{NONAME}", &single_group, "").unwrap_or(());
+        ini.set_current("{NONAME}", &single_group).unwrap_or(());
     }
 
     // Generate rules if enabled
