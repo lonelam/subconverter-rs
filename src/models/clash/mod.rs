@@ -17,6 +17,7 @@ mod shadowsocksr;
 mod snell;
 mod socks5;
 mod trojan;
+mod tuic;
 mod vless;
 mod vmess;
 mod wireguard;
@@ -31,6 +32,7 @@ pub use shadowsocksr::ClashShadowsocksR;
 pub use snell::ClashSnell;
 pub use socks5::ClashSocks5;
 pub use trojan::ClashTrojan;
+pub use tuic::ClashTuic;
 pub use vless::ClashVless;
 pub use vmess::ClashVmess;
 pub use wireguard::ClashWireGuard;
@@ -63,6 +65,8 @@ pub enum ClashProxy {
     Hysteria(ClashHysteria),
     #[serde(rename = "hysteria2")]
     Hysteria2(ClashHysteria2),
+    #[serde(rename = "tuic")]
+    Tuic(ClashTuic),
     #[serde(rename = "vless")]
     VLess(ClashVless),
     #[serde(rename = "anytls")]
@@ -87,6 +91,7 @@ impl ClashProxy {
             ClashProxy::WireGuard(inner) => Some(inner.into_proxy()),
             ClashProxy::Hysteria(inner) => Some(inner.into_proxy()),
             ClashProxy::Hysteria2(inner) => Some(inner.into_proxy()),
+            ClashProxy::Tuic(inner) => Some(inner.into_proxy()),
             ClashProxy::VLess(inner) => Some(inner.into_proxy()),
             ClashProxy::AnyTls(inner) => Some(inner.into_proxy()),
             ClashProxy::Unknown => None,
@@ -114,6 +119,7 @@ impl ClashProxy {
             ProxyType::WireGuard => Some(ClashProxy::WireGuard(ClashWireGuard::from(proxy))),
             ProxyType::Hysteria => Some(ClashProxy::Hysteria(ClashHysteria::from(proxy))),
             ProxyType::Hysteria2 => Some(ClashProxy::Hysteria2(ClashHysteria2::from(proxy))),
+            ProxyType::Tuic => Some(ClashProxy::Tuic(ClashTuic::from(proxy))),
             ProxyType::Vless => Some(ClashProxy::VLess(ClashVless::from(proxy))),
             ProxyType::AnyTls => Some(ClashProxy::AnyTls(ClashAnyTls::from(proxy))),
             ProxyType::Unknown => None,
@@ -220,6 +226,7 @@ mod tests {
             r#"{name: so, type: socks5, server: s.example.com, port: 1080, username: u, password: pw, udp: true}"#,
             r#"{name: wg, type: wireguard, server: s.example.com, port: 51820, private-key: pk, public-key: pub, ip: 10.0.0.2, dns: [1.1.1.1], mtu: 1420, udp: true}"#,
             r#"{name: at, type: anytls, server: s.example.com, port: 8443, password: pw, sni: sni.example.com, client-fingerprint: chrome, udp: true}"#,
+            r#"{name: tu, type: tuic, server: s.example.com, port: 443, uuid: u, password: pw, congestion-controller: bbr, udp-relay-mode: native, alpn: [h3], sni: sni.example.com}"#,
         ];
         for entry in entries {
             let first = parse_one(entry);

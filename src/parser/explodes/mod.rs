@@ -14,6 +14,7 @@ mod ssr;
 mod sstap;
 mod surge;
 mod trojan;
+mod tuic;
 mod vless;
 mod vmess;
 mod wireguard;
@@ -34,6 +35,7 @@ pub use ssr::{explode_ssr, explode_ssr_conf};
 pub use sstap::explode_sstap;
 pub use surge::explode_surge;
 pub use trojan::{explode_trojan, explode_trojan_go};
+pub use tuic::explode_tuic;
 pub use vless::explode_vless;
 pub use vmess::{
     explode_kitsunebi, explode_shadowrocket, explode_std_vmess, explode_std_vmess_new,

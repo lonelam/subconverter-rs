@@ -16,6 +16,7 @@ use super::proxy_node::shadowsocksr::ShadowsocksRProxy;
 use super::proxy_node::snell::SnellProxy;
 use super::proxy_node::socks5::Socks5Proxy;
 use super::proxy_node::trojan::TrojanProxy;
+use super::proxy_node::tuic::TuicProxy;
 use super::proxy_node::vless::VlessProxy;
 use super::proxy_node::vmess::VmessProxy;
 use super::proxy_node::wireguard::WireGuardProxy;
@@ -39,6 +40,7 @@ pub enum ProxyType {
     Hysteria2,
     Vless,
     AnyTls,
+    Tuic,
 }
 
 /// Converts a `ProxyType` into a human-readable name.
@@ -58,6 +60,7 @@ impl ProxyType {
             ProxyType::Hysteria2 => "Hysteria2",
             ProxyType::Vless => "Vless",
             ProxyType::AnyTls => "AnyTLS",
+            ProxyType::Tuic => "TUIC",
             ProxyType::Unknown => "Unknown",
         }
     }
@@ -182,6 +185,7 @@ impl Proxy {
     typed_accessors!(as_hysteria, as_hysteria_mut, Hysteria, HysteriaProxy);
     typed_accessors!(as_hysteria2, as_hysteria2_mut, Hysteria2, Hysteria2Proxy);
     typed_accessors!(as_vless, as_vless_mut, Vless, VlessProxy);
+    typed_accessors!(as_tuic, as_tuic_mut, Tuic, TuicProxy);
     typed_accessors!(as_anytls, as_anytls_mut, AnyTls, AnyTlsProxy);
 
     /// The password / PSK / auth secret of the node, regardless of protocol.
@@ -467,3 +471,4 @@ pub const WG_DEFAULT_GROUP: &str = "WireGuardProvider";
 pub const HYSTERIA_DEFAULT_GROUP: &str = "HysteriaProvider";
 pub const HYSTERIA2_DEFAULT_GROUP: &str = "Hysteria2Provider";
 pub const ANYTLS_DEFAULT_GROUP: &str = "AnyTLSProvider";
+pub const TUIC_DEFAULT_GROUP: &str = "TuicProvider";

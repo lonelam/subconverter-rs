@@ -39,6 +39,7 @@ proxies:
   - {name: "socks-node", type: socks5, server: socks.example.com, port: 1080, username: sockuser, password: sockpass, udp: true}
   - {name: "wg-node", type: wireguard, server: wg.example.com, port: 51820, private-key: cHJpdmF0ZWtleQ==, public-key: cHVibGlja2V5, ip: 10.0.0.2, dns: [1.1.1.1], mtu: 1420, udp: true}
   - {name: "anytls-node", type: anytls, server: anytls.example.com, port: 8443, password: anytlspw, sni: asni.example.com, client-fingerprint: chrome, udp: true}
+  - {name: "tuic-node", type: tuic, server: tuic.example.com, port: 443, uuid: b445361a-abcf-4a4a-a97a-0bf4136d6ddc, password: tuicpw, congestion-controller: bbr, udp-relay-mode: native, reduce-rtt: true, alpn: [h3], sni: tsni.example.com}
 "#;
 
 const CLASH_BASE: &str = "mixed-port: 7890\nmode: rule\n";
@@ -49,7 +50,7 @@ fn fixture_nodes() -> Vec<Proxy> {
         explode_clash(FIXTURE_CLASH_YAML, &mut nodes),
         "fixture must parse"
     );
-    assert_eq!(nodes.len(), 12, "all fixture nodes must parse");
+    assert_eq!(nodes.len(), 13, "all fixture nodes must parse");
     nodes
 }
 

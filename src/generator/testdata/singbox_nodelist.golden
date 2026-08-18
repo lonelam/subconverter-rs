@@ -165,6 +165,24 @@
         }
       },
       "type": "anytls"
+    },
+    {
+      "congestion_control": "bbr",
+      "password": "tuicpw",
+      "server": "tuic.example.com",
+      "server_port": 443,
+      "tag": "tuic-node",
+      "tls": {
+        "alpn": [
+          "h3"
+        ],
+        "enabled": true,
+        "server_name": "tsni.example.com"
+      },
+      "type": "tuic",
+      "udp_relay_mode": "native",
+      "uuid": "b445361a-abcf-4a4a-a97a-0bf4136d6ddc",
+      "zero_rtt_handshake": true
     }
   ]
 }

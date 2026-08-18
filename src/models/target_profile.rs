@@ -76,6 +76,7 @@ static MIHOMO_CAPABILITIES: ClashCapabilities = ClashCapabilities {
         ProxyType::Hysteria2,
         ProxyType::Vless,
         ProxyType::AnyTls,
+        ProxyType::Tuic,
     ],
     client_fingerprint: true,
     reality: true,
@@ -113,6 +114,7 @@ static STASH_CAPABILITIES: ClashCapabilities = ClashCapabilities {
         ProxyType::Hysteria,
         ProxyType::Hysteria2,
         ProxyType::Vless,
+        ProxyType::Tuic,
     ],
     // Stash has no uTLS support
     client_fingerprint: false,

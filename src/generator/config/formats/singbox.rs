@@ -705,6 +705,51 @@ pub fn proxy_to_singbox(
 
                 obj
             }
+            ProxyType::Tuic => {
+                let default_tuic = Default::default();
+                let tuic = node.as_tuic().unwrap_or(&default_tuic);
+                let mut obj = Map::new();
+                add_singbox_common_members(&mut obj, node, "tuic");
+
+                obj.insert("uuid".to_string(), JsonValue::String(tuic.uuid.clone()));
+                if !tuic.password.is_empty() {
+                    obj.insert(
+                        "password".to_string(),
+                        JsonValue::String(tuic.password.clone()),
+                    );
+                }
+
+                if let Some(congestion) = tuic
+                    .congestion_controller
+                    .clone()
+                    .filter(|c| !c.is_empty())
+                {
+                    obj.insert(
+                        "congestion_control".to_string(),
+                        JsonValue::String(congestion),
+                    );
+                }
+
+                if let Some(mode) = tuic.udp_relay_mode.clone().filter(|m| !m.is_empty()) {
+                    obj.insert("udp_relay_mode".to_string(), JsonValue::String(mode));
+                }
+
+                if let Some(reduce_rtt) = tuic.reduce_rtt {
+                    obj.insert(
+                        "zero_rtt_handshake".to_string(),
+                        JsonValue::Bool(reduce_rtt),
+                    );
+                }
+
+                if let Some(heartbeat) = tuic.heartbeat_interval {
+                    obj.insert(
+                        "heartbeat".to_string(),
+                        JsonValue::String(format!("{}ms", heartbeat)),
+                    );
+                }
+
+                obj
+            }
             ProxyType::AnyTls => {
                 let default_anytls = Default::default();
                 let anytls = node.as_anytls().unwrap_or(&default_anytls);

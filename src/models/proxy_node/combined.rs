@@ -9,6 +9,7 @@ use super::shadowsocksr::ShadowsocksRProxy;
 use super::snell::SnellProxy;
 use super::socks5::Socks5Proxy;
 use super::trojan::TrojanProxy;
+use super::tuic::TuicProxy;
 use super::vless::VlessProxy;
 use super::vmess::VmessProxy;
 use super::wireguard::WireGuardProxy;
@@ -31,4 +32,5 @@ pub enum CombinedProxy {
     WireGuard(WireGuardProxy),
     Hysteria(HysteriaProxy),
     Hysteria2(Hysteria2Proxy),
+    Tuic(TuicProxy),
 }

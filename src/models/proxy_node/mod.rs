@@ -8,6 +8,7 @@ pub mod shadowsocksr;
 pub mod snell;
 pub mod socks5;
 pub mod trojan;
+pub mod tuic;
 pub mod vless;
 pub mod vmess;
 pub mod wireguard;

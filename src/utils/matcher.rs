@@ -29,6 +29,9 @@ lazy_static! {
         m.insert(ProxyType::WireGuard, "WIREGUARD");
         m.insert(ProxyType::Hysteria, "HYSTERIA");
         m.insert(ProxyType::Hysteria2, "HYSTERIA2");
+        m.insert(ProxyType::Vless, "VLESS");
+        m.insert(ProxyType::AnyTls, "ANYTLS");
+        m.insert(ProxyType::Tuic, "TUIC");
         m.insert(ProxyType::Unknown, "UNKNOWN");
         m
     };

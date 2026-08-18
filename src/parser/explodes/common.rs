@@ -76,6 +76,8 @@ pub fn explode(link: &str, node: &mut Proxy) -> bool {
         super::vless::explode_vless(link, node)
     } else if link.starts_with("anytls://") {
         super::anytls::explode_anytls(link, node)
+    } else if link.starts_with("tuic://") {
+        super::tuic::explode_tuic(link, node)
     } else {
         false
     }

@@ -126,3 +126,15 @@ proxies:
   password: anytlspw
   sni: asni.example.com
   client-fingerprint: chrome
+- type: tuic
+  name: tuic-node
+  server: tuic.example.com
+  port: 443
+  sni: tsni.example.com
+  uuid: b445361a-abcf-4a4a-a97a-0bf4136d6ddc
+  password: tuicpw
+  alpn:
+  - h3
+  reduce-rtt: true
+  udp-relay-mode: native
+  congestion-controller: bbr

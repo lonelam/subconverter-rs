@@ -432,6 +432,7 @@ proxies:
   - {name: vless-node, type: vless, server: s.example.com, port: 443, uuid: u, network: grpc, tls: true, client-fingerprint: chrome, servername: sni.example.com, reality-opts: {public-key: pk, short-id: "01"}}
   - {name: hy2-node, type: hysteria2, server: s.example.com, port: 443, password: pw}
   - {name: trojan-node, type: trojan, server: s.example.com, port: 443, password: pw, client-fingerprint: chrome}
+  - {name: tuic-node, type: tuic, server: s.example.com, port: 443, uuid: u, password: pw}
 "#;
 
     fn render(flavor: ClashFlavor) -> String {
@@ -462,6 +463,7 @@ proxies:
         assert!(output.contains("trojan-node"));
         assert!(!output.contains("vless-node"));
         assert!(!output.contains("hy2-node"));
+        assert!(!output.contains("tuic-node"));
         assert!(!output.contains("client-fingerprint"));
         assert!(!output.contains("reality-opts"));
     }
@@ -472,6 +474,7 @@ proxies:
         let output = render(ClashFlavor::Stash);
         assert!(output.contains("vless-node"));
         assert!(output.contains("hy2-node"));
+        assert!(output.contains("tuic-node"));
         assert!(output.contains("reality-opts"));
         assert!(!output.contains("client-fingerprint"));
     }
