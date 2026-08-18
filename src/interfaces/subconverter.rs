@@ -642,10 +642,9 @@ pub async fn subconverter(mut config: SubconverterConfig) -> Result<Subconverter
                     insert_nodes.append(&mut parsed_nodes);
                 }
                 Err(e) => {
-                    warn!("Failed to parse insert URL '{}': {}", url, e);
-                    if !global.skip_failed_links {
-                        return Err(format!("Failed to parse insert URL '{}': {}", url, e));
-                    }
+                    // Insert URLs are server-side extras the requester cannot
+                    // control; a stale one must never fail the conversion.
+                    warn!("Skipping insert URL '{}': {}", url, e);
                 }
             }
             group_id += 1;
