@@ -138,7 +138,7 @@ cargo build --release --features=web-api
 | 模板系统 | ✅ | 支持可自定义模板 |
 | 规则转换 | ✅ | 规则集合转换功能（部分实现） |
 | HTTP 服务器 | ✅ | 用于订阅转换的 Web 服务器，实现核心sub接口 |
-| 额外 API 端点 | ⚠️ | 如 /surge2clash, /getprofile 等（部分实现） |
+| 额外 API 端点 | ✅ | `/sub`、`/surge2clash`、`/getprofile`（profile 仅读取本地文件） |
 | 自动上传到 Gist | ❌ | 自动上传生成的配置（计划中） |
 | RESTful API | ❌ | 用于集成的完整 API（部分实现） |
 
@@ -312,9 +312,9 @@ http://127.0.0.1:25500/sub?target=%TARGET%&url=%URL%&emoji=%EMOJI%····
 
 ### 配置档案
 
-> 当通过上述[进阶链接](#进阶链接)配置好订阅链接后，通常会使得链接十分冗长和难以记忆，此时可以考虑使用配置档案。（🚧 部分实现）
+> 当通过上述[进阶链接](#进阶链接)配置好订阅链接后，通常会使得链接十分冗长和难以记忆，此时可以考虑使用配置档案。
 
-此功能暂时**仅能读取本地文件**
+此功能**仅读取本地文件**，路径限制在 `pref.toml` 所在目录内（禁止 `..`、绝对路径和逃逸到目录外的符号链接）；`name` 省略扩展名时会自动补 `.ini`。
 
 #### 调用地址 (档案)
 
@@ -326,8 +326,8 @@ http://127.0.0.1:25500/getprofile?name=%NAME%&token=%TOKEN%
 
 | 调用参数 | 必要性 | 示例 | 解释 | 状态 |
 | ------ | :--: | :--- | ---- | :---: |
-| name | 必要 | profiles/formyairport.ini | 指配置档案的存储位置(可使用基于**pref 配置文件**的相对位置) | 🚧 |
-| token | 必要 | passwd | 为了安全考虑**必须设置token**（详见 [配置文件](#配置文件) 中 `[common] 部分` 对 `api_access_token` 的描述） | 🚧 |
+| name | 必要 | profiles/formyairport.ini | 指配置档案的存储位置(可使用基于**pref 配置文件**的相对位置) | ✅ |
+| token | 必要 | passwd | 为了安全考虑**必须设置token**（详见 [配置文件](#配置文件) 中 `[common] 部分` 对 `api_access_token` 的描述） | ✅ |
 
 ### 配置文件
 

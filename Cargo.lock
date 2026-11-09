@@ -1835,6 +1835,7 @@ dependencies = [
  "serde_bytes",
  "serde_ini",
  "serde_json",
+ "serde_urlencoded",
  "serde_yaml",
  "tempfile",
  "thiserror",

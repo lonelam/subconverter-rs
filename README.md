@@ -198,6 +198,27 @@ http://127.0.0.1:25500/surge2clash?link=SurgeSubscriptionLink
 ```
 *Note: The Surge subscription link does NOT need to be URLEncoded.*
 
+### Profile-Based Subscription
+
+Instead of passing the full `/sub?...` query on every request, put the parameters in a local profile INI file and request it by name:
+```http
+http://127.0.0.1:25500/getprofile?name=profiles/my.ini&token=YOUR_API_ACCESS_TOKEN
+```
+
+`name` is resolved relative to the directory containing `pref.toml` and may omit `.ini`. Only local files under that directory are readable; absolute paths, `..`, and symlinks escaping the directory are rejected. `token` must match `api_access_token`.
+
+Example `profiles/my.ini`:
+```ini
+[Profile]
+target = clash
+url = https://example.com/sub
+exclude = expired|traffic
+filename = MyProfile
+interval = 86400
+```
+
+Request query parameters override values from the profile.
+
 ---
 
 ## 🔧 Advanced Usage

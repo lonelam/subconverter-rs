@@ -4,6 +4,7 @@ use actix_web::{web, HttpRequest, HttpResponse};
 use log::error;
 
 use crate::api::{sub_process, SubResponse, SubconverterQuery};
+use crate::web_handlers::getprofile::get_profile_handler;
 impl SubResponse {
     /// Convert SubResponse to HttpResponse
     pub fn to_http_response(self) -> HttpResponse {
@@ -109,6 +110,7 @@ pub async fn surge_to_clash_handler(
 /// Register the API endpoints with Actix Web
 pub fn config(cfg: &mut web::ServiceConfig) {
     cfg.route("/sub", web::get().to(sub_handler))
+        .route("/getprofile", web::get().to(get_profile_handler))
         .route("/surge2clash", web::get().to(surge_to_clash_handler))
         .route("/{target_type}", web::get().to(simple_handler));
 }
